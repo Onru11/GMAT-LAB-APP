@@ -28,10 +28,9 @@ offline on one device; the Sync card only appears once a project is configured.
 4. **Authentication → Email Templates → Magic Link**: add `Your code: {{ .Token }}` to the body,
    so the email carries a 6-digit code as well as the link (the code is what works inside the
    installed app).
-5. **Project Settings → API**: copy the *Project URL* and the *anon public* key into the GitHub repo
-   under **Settings → Secrets and variables → Actions → Variables** as `SUPABASE_URL` and
-   `SUPABASE_ANON_KEY`, then re-run the deploy workflow. Locally, put them in `app/.env.local` as
-   `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+5. **Project Settings → API**: put the *Project URL* and *anon public* key in `app/.env.production`
+   as `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (already done for this project; both are public
+   by design). For local development use `app/.env.local`.
 
 Devices are merged, never overwritten: answers, tests and scores are combined; levels, cards and
 mistakes take the most recent change; a mistake cleared on one device disappears on the others.

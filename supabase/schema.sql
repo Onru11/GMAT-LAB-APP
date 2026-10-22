@@ -12,16 +12,16 @@ alter table public.progress enable row level security;
 
 drop policy if exists "read own progress" on public.progress;
 create policy "read own progress" on public.progress
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 
 drop policy if exists "insert own progress" on public.progress;
 create policy "insert own progress" on public.progress
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 
 drop policy if exists "update own progress" on public.progress;
 create policy "update own progress" on public.progress
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 drop policy if exists "delete own progress" on public.progress;
 create policy "delete own progress" on public.progress
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
