@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { PERSISTED, clearProgress, dayKey, loadProgress, rollOver, saveProgress } from './persist';
 import {
   DECKS,
   INITIAL_MISTAKES,
@@ -89,6 +90,10 @@ export interface AppState {
   target: number;
   route: Route;
   tab: Tab;
+  /** The day `queue` belongs to (YYYY-MM-DD). */
+  day: string;
+  /** Last day all five queue items were finished; keeps the streak alive. */
+  lastFullDay: string | null;
   queue: boolean[];
   streak: number;
   les: LessonState;
@@ -119,7 +124,40 @@ const freshSprint = (from: Origin = 'review'): SprintState => ({
   i: 0, input: '', sec: 0, flash: null, ans: [], done: false, from, msg: '',
 });
 const emptyForm: ScoreForm = { date: '', total: '', q: '', v: '', di: '' };
-const START_QUEUE = [true, false, false, false, false];
+const EMPTY_QUEUE = [false, false, false, false, false];
+const ALL_CARDS = DECKS.reduce((n, d) => n + d.cards.length, 0);
+
+/** What a brand-new learner starts with. */
+function freshProgress() {
+  return {
+    target: 705,
+    day: dayKey(),
+    lastFullDay: null,
+    queue: EMPTY_QUEUE,
+    streak: 0,
+    inRow: 0,
+    boxes: [ALL_CARDS, 0, 0, 0],
+    mistakes: [] as Mistake[],
+    scores: [] as Score[],
+    openPhase: { 0: true, 2: false } as Record<number, boolean>,
+    lvl: 0,
+    progSec: 0,
+  };
+}
+
+/** The design's sample learner, for demos and the dev panel. */
+function sampleProgress() {
+  return {
+    ...freshProgress(),
+    lastFullDay: dayKey(),
+    queue: [true, false, false, false, false],
+    streak: 12,
+    inRow: 2,
+    boxes: [5, 4, 2, 1],
+    mistakes: INITIAL_MISTAKES,
+    scores: INITIAL_SCORES,
+  };
+}
 
 function initialTheme(): Theme {
   try {
@@ -132,30 +170,24 @@ function initialTheme(): Theme {
 }
 
 export function initialState(): AppState {
+  const saved = loadProgress();
+  const progress = rollOver({ ...freshProgress(), ...saved });
   return {
+    ...progress,
+    mistakes: progress.mistakes.map(({ fresh: _fresh, ...m }) => m),
     theme: initialTheme(),
-    target: 705,
     route: 'today',
     tab: 'today',
-    queue: START_QUEUE,
-    streak: 12,
     les: freshLesson(),
     run: null,
-    inRow: 2,
     deck: 0,
     fl: freshFlash(),
-    boxes: [5, 4, 2, 1],
     sp: freshSprint(),
-    mistakes: INITIAL_MISTAKES,
     nothingDue: false,
     noScores: false,
-    scores: INITIAL_SCORES,
     form: emptyForm,
     formErr: '',
     formOk: false,
-    progSec: 0,
-    openPhase: { 0: true, 2: false },
-    lvl: 0,
     toolOpen: 0,
   };
 }
@@ -174,7 +206,7 @@ function withQueueDone(s: AppState, n: number): Partial<AppState> {
   const queue = [...s.queue];
   queue[n] = true;
   const finishedNow = queue.every(Boolean) && !s.queue.every(Boolean);
-  return { queue, streak: finishedNow ? s.streak + 1 : s.streak };
+  return finishedNow ? { queue, streak: s.streak + 1, lastFullDay: s.day } : { queue };
 }
 
 function newRun(mode: RunMode, list: number[], over?: Partial<Run>): Run {
@@ -203,17 +235,30 @@ function createActions(set: Set) {
 
     setTheme: (theme: Theme) => set({ theme }),
     setTarget: (target: number) => set({ target }),
+    loadSample: () => set({ ...sampleProgress(), ...routeTo('today') }),
+    resetProgress() {
+      clearProgress();
+      set({ ...freshProgress(), ...routeTo('today') });
+    },
 
     queueGo(n: number) {
       if (n === 0) openDeck(0, 'today');
       else if (n === 1) startSprint('today');
       else if (n === 2) openLesson(0);
-      else if (n === 3) startRun('mistakes', [1, 2, 0]);
+      else if (n === 3)
+        set(s => {
+          const due = visibleMistakes(s).filter(m => m.due);
+          // Nothing due: the item is done by definition; show the empty Mistakes screen.
+          if (!due.length) return { ...withQueueDone(s, 3), ...routeTo('mistakes') };
+          return routeTo('runner', { run: newRun('mistakes', due.map(m => m.qi)) });
+        });
       else startRun('cr', [3]);
     },
 
     tick() {
       set(s => {
+        const today = dayKey();
+        if (s.day !== today) return rollOver(s, today);
         if (s.route === 'runner' && s.run && !s.run.conf) return { run: { ...s.run, sec: s.run.sec + 1 } };
         if (s.route === 'sprint' && !s.sp.done) return { sp: { ...s.sp, sec: s.sp.sec + 1 } };
         return {};
@@ -347,7 +392,7 @@ function createActions(set: Set) {
 
     /** Preview a named state of the prototype (dev panel only). */
     jump(key: JumpKey) {
-      const reset: Partial<AppState> = { queue: START_QUEUE, nothingDue: false, noScores: false };
+      const reset: Partial<AppState> = { queue: [true, false, false, false, false], nothingDue: false, noScores: false };
       const J: Record<JumpKey, () => void> = {
         today: () => go('today', reset),
         todayMid: () => go('today', { ...reset, queue: [true, true, true, false, false] }),
@@ -464,6 +509,8 @@ export function useAppStore() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [sprintActive, actions]);
+
+  useEffect(() => saveProgress(state), PERSISTED.map(k => state[k]));
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;

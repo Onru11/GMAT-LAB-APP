@@ -3,6 +3,9 @@ import { QUEUE, SECTION_ESTIMATES } from '../data';
 import { useApp, visibleMistakes } from '../store';
 import { ArrowRight, BT, CheckIcon, Corners, DoneBadge, FlameIcon, H2, Kicker, heading, rowTop, tabular } from '../components/ui';
 
+const dateLabel = (d = new Date()) =>
+  d.toLocaleDateString('en-US', { weekday: 'long' }) + ' · ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
 const pct = (v: number) => Math.max(0, Math.min(100, ((v - 205) / 600) * 100)) + '%';
 const BASELINE = 375;
 
@@ -13,9 +16,14 @@ export function Today() {
   const toGo = Math.max(0, s.target - estTotal);
   const nextIdx = s.queue.findIndex(d => !d);
   const allDone = nextIdx === -1;
-  const next = QUEUE[allDone ? 0 : nextIdx];
+  const due = visibleMistakes(s).filter(m => m.due);
+  const dueCount = due.length;
+  const dueTopics = [...new Set(due.map(m => m.topic))].join(', ');
+  const queue = QUEUE.map((q, i) =>
+    i !== 3 ? q : { ...q, meta: dueCount ? `${dueCount} due · ${dueTopics}` : 'Nothing due today', why: dueCount ? `${dueCount === 1 ? 'One miss is' : dueCount + ' misses are'} due today. Clean answers move them toward cleared.` : 'Nothing is due, so this one is a quick check-off.' },
+  );
+  const next = queue[allDone ? 0 : nextIdx];
   const doneCount = s.queue.filter(Boolean).length;
-  const dueCount = visibleMistakes(s).filter(m => m.due).length;
 
   const quickTile: CSSProperties = { textAlign: 'left', padding: 14, border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 };
 
@@ -23,7 +31,7 @@ export function Today() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <Kicker>Thursday · Oct 22</Kicker>
+          <Kicker>{dateLabel()}</Kicker>
           <h1 style={{ margin: '2px 0 0', fontSize: 38, lineHeight: 1 }}>Today</h1>
         </div>
         {!desk && (
@@ -78,7 +86,7 @@ export function Today() {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>From your last official exam (465) and 40 recent drill answers. Sections scale 60–90.</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{lastOfficial ? `From your last official exam (${lastOfficial.total}) and recent drill answers.` : 'From drills only until you log an official exam.'} Sections scale 60–90.</div>
           </section>
 
           {desk && (
@@ -142,7 +150,7 @@ export function Today() {
               <span style={{ fontSize: 13, color: 'var(--muted)' }}>{doneCount} of 5 done · ~28 min</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', border: BT, background: 'var(--color-bg)' }}>
-              {QUEUE.map((q, i) => {
+              {queue.map((q, i) => {
                 const done = s.queue[i];
                 const cur = i === nextIdx;
                 return (

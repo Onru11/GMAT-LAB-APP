@@ -25,6 +25,14 @@ export function DevPanel() {
               {s.theme === 'dark' ? 'Light mode' : 'Dark mode'}
             </button>
           </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={a.loadSample}>
+              Sample data
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1, color: 'var(--bad)' }} onClick={() => confirm('Erase all saved progress?') && a.resetProgress()}>
+              Reset progress
+            </button>
+          </div>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
             Target score · {s.target}
             <input type="range" min={605} max={805} step={5} value={s.target} onChange={e => a.setTarget(Number(e.target.value))} />
