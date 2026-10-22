@@ -33,11 +33,12 @@ export interface Phase {
   topics: { name: string; level: number; status: string; current?: boolean }[];
 }
 
-export interface Mistake {
+/** Sample mistakes; `due` becomes a real next-review date when loaded. */
+export interface SampleMistake {
   topic: string;
   title: string;
   reason: string;
-  /** Leitner step 0–3; maps onto MISTAKE_DAYS. */
+  /** Leitner step 0–3. */
   box: number;
   due: boolean;
   /** Question id in the bank. */
@@ -64,7 +65,6 @@ export interface QueueItem {
 export const LEVELS = ['Foundation', 'Building', 'Solid ~600', 'Strong ~655', 'Elite 705+'];
 export const levelName = (l: number) => (l < 0 ? 'Not started' : LEVELS[l]);
 export const LETTERS = 'ABCDE';
-export const MISTAKE_DAYS = [1, 3, 7, 14];
 export const MISS_REASONS = ["Didn't know how", 'Careless slip', 'Misread the question', 'Rushed or too slow'];
 
 export const LESSON_QUESTIONS: LessonQuestion[] = [
@@ -191,7 +191,7 @@ export const PERCENT_LESSONS: [mark: string, name: string, current: boolean][] =
   ['5', 'Reverse percents', false],
 ];
 
-export const INITIAL_MISTAKES: Mistake[] = [
+export const INITIAL_MISTAKES: SampleMistake[] = [
   { topic: 'Percents', title: 'Successive % change', reason: 'Misread the question', box: 1, due: true, qid: 'pct-raise-cut' },
   { topic: 'Number properties', title: 'Is x > 0? · DS with x²', reason: "Didn't know how", box: 0, due: true, qid: 'ds-sign' },
   { topic: 'Exponents & roots', title: 'Rewrite on base 2', reason: 'Careless slip', box: 2, due: true, qid: 'exp-same-base' },
@@ -221,11 +221,4 @@ export const TOOLS: [name: string, rule: string, note: string][] = [
   ['Rates & work', 'Work = rate × time', 'Rates add when working together: 1/a + 1/b = 1/t.'],
   ['Divisibility', '3 and 9: digit sum · 4: last two digits', '6 needs 2 and 3. 12 needs 3 and 4.'],
   ['Averages', 'Sum = average × count', 'Most average questions are really sum questions.'],
-];
-
-/** Current estimate per section: [name, estimate, baseline]. */
-export const SECTION_ESTIMATES: [name: string, value: number, base: number][] = [
-  ['Quant', 68, 62],
-  ['Verbal', 76, 73],
-  ['Data Insights', 73, 70],
 ];

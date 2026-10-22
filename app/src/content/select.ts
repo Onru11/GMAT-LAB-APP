@@ -46,31 +46,9 @@ export function seededShuffle<T>(items: T[], seed: number): T[] {
   return out;
 }
 
-const sectionOfTopic = (topic: string): Section | undefined => QUESTION_LIST.find(q => q.topic === topic)?.section;
-
-/** A topic drill: that topic's questions, easiest first; falls back to the topic's section. */
-export function topicDrill(topic: string, section?: Section): string[] {
-  const own = QUESTION_LIST.filter(q => q.topic === topic);
-  const pool = own.length ? own : QUESTION_LIST.filter(q => q.section === (section ?? sectionOfTopic(topic)));
-  return [...pool].sort((a, b) => a.level - b.level).slice(0, 6).map(q => q.id);
-}
-
-/** A mixed set across sections, one question per topic, in seeded order. */
-export function mixedDrill(n: number, seed: number): string[] {
-  const byTopic = new Map<string, Question[]>();
-  for (const q of seededShuffle(QUESTION_LIST, seed)) byTopic.set(q.topic, [...(byTopic.get(q.topic) ?? []), q]);
-  return seededShuffle([...byTopic.values()].map(qs => qs[0].id), seed + 1).slice(0, n);
-}
-
 /** Critical Reasoning set for the daily queue. */
 export function crSet(n: number, seed: number): string[] {
   return seededShuffle(QUESTION_LIST.filter(q => q.kind === 'Critical reasoning'), seed).slice(0, n).map(q => q.id);
-}
-
-/** A full-length section test, ordered easy → hard with topics interleaved. */
-export function buildTest(section: TestDef['section'], seed: number): string[] {
-  const pool = seededShuffle(QUESTION_LIST.filter(q => q.section === section), seed);
-  return pool.slice(0, TESTS[section].length).sort((a, b) => a.level - b.level).map(q => q.id);
 }
 
 /**

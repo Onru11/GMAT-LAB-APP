@@ -5,10 +5,11 @@
 import type { AppState } from './store';
 
 const KEY = 'gmatlab.progress';
-const VERSION = 1;
+const VERSION = 2;
 
 export const PERSISTED = [
-  'target', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'boxes', 'mistakes', 'scores', 'tests',
+  'target', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'mistakes', 'scores', 'tests',
+  'history', 'ladders', 'cards', 'cleared', 'sprintBest', 'sprintLast', 'sprintFacts',
   'openPhase', 'lvl', 'progSec',
 ] as const satisfies readonly (keyof AppState)[];
 
@@ -30,11 +31,20 @@ export function loadProgress(): Partial<Persisted> | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { v?: number; data?: Partial<Persisted> };
-    return parsed.v === VERSION && parsed.data ? parsed.data : null;
+    const parsed = JSON.parse(raw) as { v?: number; data?: Record<string, unknown> };
+    if (!parsed.data) return null;
+    if (parsed.v === VERSION) return parsed.data as Partial<Persisted>;
+    if (parsed.v === 1) return migrateV1(parsed.data);
+    return null;
   } catch {
     return null;
   }
+}
+
+/** v1 stored mistakes with a due flag and question indexes; keep the queue, streak and scores. */
+function migrateV1(data: Record<string, unknown>): Partial<Persisted> {
+  const { mistakes: _m, boxes: _b, ...rest } = data;
+  return rest as Partial<Persisted>;
 }
 
 export function saveProgress(s: AppState) {

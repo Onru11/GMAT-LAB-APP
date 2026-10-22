@@ -1,5 +1,6 @@
 import { LEVELS, PERCENT_LESSONS, PHASES, levelName, type Phase } from '../data';
 import { useApp } from '../store';
+import { topicStat } from '../progress';
 import { BT, Corners, LevelSegments, PageHeader, heading } from '../components/ui';
 
 const TAG_COLORS: Record<Phase['tag'], [bg: string, ink: string]> = {
@@ -41,7 +42,10 @@ export function Learn() {
             </button>
             {open && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,260px),1fr))', gap: 10, padding: '0 14px 14px' }}>
-                {ph.topics.map(tp => (
+                {ph.topics.map(base => {
+                  const live = topicStat(base.name, s.history, s.ladders);
+                  const tp = { ...base, level: live.level, status: live.answered ? `${live.answered} answered · ${live.acc}% recently` : base.status };
+                  return (
                   <div key={tp.name} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: `1px solid ${tp.current ? 'var(--color-accent)' : 'var(--color-divider)'}`, background: tp.current ? 'var(--color-accent-100)' : 'var(--color-bg)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
                       <span style={{ fontWeight: 600, fontSize: 15 }}>{tp.name}</span>
@@ -64,7 +68,8 @@ export function Learn() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

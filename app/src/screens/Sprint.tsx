@@ -61,7 +61,7 @@ export function Sprint() {
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>Per item</div>
               <div style={bigStat}>{P.ans.length ? Math.round(P.sec / P.ans.length) : 0}s</div>
             </div>
-            <div style={{ gridColumn: '1/-1', fontSize: 13, color: 'var(--muted)' }}>Best 2:41 · aim for under 6s per item before exam day.</div>
+            <div style={{ gridColumn: '1/-1', fontSize: 13, color: 'var(--muted)' }}>{s.sprintBest != null ? `Best ${fmtTime(s.sprintBest)}` : 'Your first clean run sets your best'} · aim for under 6s per item before exam day.</div>
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <H2>Facts you missed</H2>

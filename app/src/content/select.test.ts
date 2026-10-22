@@ -1,38 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { QUESTIONS } from './questions';
-import { TESTS, buildTest, crSet, mixedDrill, scoreTest, sectionScore, topicDrill } from './select';
+import { QUESTION_LIST } from './questions';
+import { crSet, scoreTest, sectionScore, seededShuffle } from './select';
 
 describe('question selection', () => {
-  it('builds full-length tests from the right section, no repeats', () => {
-    for (const section of ['Quant', 'Data Insights'] as const) {
-      const ids = buildTest(section, 20261022);
-      expect(ids).toHaveLength(TESTS[section].length);
-      expect(new Set(ids).size).toBe(ids.length);
-      expect(ids.every(id => QUESTIONS[id].section === section)).toBe(true);
-    }
+  it('shuffles deterministically per seed', () => {
+    const ids = QUESTION_LIST.map(q => q.id);
+    expect(seededShuffle(ids, 7)).toEqual(seededShuffle(ids, 7));
+    expect(seededShuffle(ids, 7)).not.toEqual(seededShuffle(ids, 8));
+    expect([...seededShuffle(ids, 7)].sort()).toEqual([...ids].sort());
   });
 
-  it('is deterministic for a seed and varies across seeds', () => {
-    expect(buildTest('Quant', 7)).toEqual(buildTest('Quant', 7));
-    expect(buildTest('Quant', 7)).not.toEqual(buildTest('Quant', 8));
-  });
-
-  it('serves a topic its own questions, or its section when it has none', () => {
-    expect(topicDrill('Percents').every(id => QUESTIONS[id].topic === 'Percents')).toBe(true);
-    const rc = topicDrill('Reading Comprehension', 'Verbal');
-    expect(rc.length).toBeGreaterThan(0);
-    expect(rc.every(id => QUESTIONS[id].section === 'Verbal')).toBe(true);
-  });
-
-  it('mixes topics and picks CR for the daily set', () => {
-    const mixed = mixedDrill(5, 3);
-    expect(new Set(mixed.map(id => QUESTIONS[id].topic)).size).toBe(5);
+  it('picks Critical Reasoning for the daily set', () => {
     expect(crSet(2, 3).every(id => QUESTIONS[id].kind === 'Critical reasoning')).toBe(true);
   });
 });
 
 describe('scoring', () => {
-  const ids = buildTest('Quant', 1);
+  const ids = QUESTION_LIST.filter(q => q.section === 'Quant').slice(0, 21).map(q => q.id);
   const answers = (okIf: (id: string) => boolean) => ids.map(qid => ({ qid, sel: 0, ok: okIf(qid), sec: 90 }));
 
   it('spans the 60–90 section scale', () => {

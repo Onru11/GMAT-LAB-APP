@@ -1,16 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { PERSISTED, clearProgress, dayKey, loadProgress, rollOver, saveProgress } from './persist';
+import { DECKS, INITIAL_MISTAKES, INITIAL_SCORES, LESSON_QUESTIONS, SPRINT, TOPICS, type Deck, type Score } from './data';
+import { QUESTIONS, QUESTION_LIST, type Section } from './content/questions';
+import { TESTS, crSet, questionTitle, scoreTest, type AnswerRecord, type TestDef, type TestResult } from './content/select';
 import {
-  DECKS,
-  INITIAL_MISTAKES,
-  INITIAL_SCORES,
-  LESSON_QUESTIONS,
-  SPRINT,
-  type Mistake,
-  type Score,
-} from './data';
-import { QUESTIONS } from './content/questions';
-import { buildTest, crSet, questionTitle, scoreTest, topicDrill, type AnswerRecord, type TestDef, type TestResult } from './content/select';
+  INTERVALS, addDays, adaptiveDrill, cardKey, climb, gradeCard, isDue, nextTestQuestion, pushHistory, reviewMistake,
+  type Answer, type CardState, type Ladder, type Mistake,
+} from './progress';
+
+export type { Mistake };
+export type VisibleMistake = Mistake & { due: boolean };
 
 export type Route =
   | 'today' | 'learn' | 'lesson' | 'practice' | 'tests' | 'results'
@@ -32,8 +31,10 @@ export interface Run {
   mode: RunMode;
   /** Question ids. */
   list: string[];
-  /** Set when mode is 'test'. */
+  /** Set when mode is 'test'; the list grows one adaptive pick at a time. */
   section?: TestDef['section'];
+  /** Planned length when the list is built as you go. */
+  length?: number;
   answers: AnswerRecord[];
   i: number;
   sel: number | null;
@@ -61,6 +62,8 @@ export interface FlashState {
   done: boolean;
   known: number;
   from: Origin;
+  /** Indexes into the deck's cards for this session: the due ones, or all if none are due. */
+  cards: number[];
 }
 
 export interface SprintAnswer {
@@ -105,8 +108,20 @@ export interface AppState {
   inRow: number;
   deck: number;
   fl: FlashState;
-  boxes: number[];
   sp: SprintState;
+  /** Every drill and test answer, oldest first (capped). */
+  history: Answer[];
+  /** Difficulty ladder per topic. */
+  ladders: Record<string, Ladder>;
+  /** Flashcard schedule, keyed by cardKey(). */
+  cards: Record<string, CardState>;
+  /** Day each mistake was cleared. */
+  cleared: string[];
+  /** Fastest sprint, in seconds; and the most recent one. */
+  sprintBest: number | null;
+  sprintLast: number | null;
+  /** Facts missed in sprints, practised as their own flashcard deck. */
+  sprintFacts: [problem: string, answer: string][];
   mistakes: Mistake[];
   nothingDue: boolean;
   noScores: boolean;
@@ -123,15 +138,14 @@ export interface AppState {
 }
 
 const freshLesson = (step = 0): LessonState => ({ step, input: '', checked: false, ok: false, score: 0 });
-const freshFlash = (from: Origin = 'review'): FlashState => ({
-  i: 0, flipped: false, mode: 'learn', input: '', checked: false, ok: false, done: false, known: 0, from,
+const freshFlash = (from: Origin = 'review', cards: number[] = [0]): FlashState => ({
+  i: 0, flipped: false, mode: 'learn', input: '', checked: false, ok: false, done: false, known: 0, from, cards,
 });
 const freshSprint = (from: Origin = 'review'): SprintState => ({
   i: 0, input: '', sec: 0, flash: null, ans: [], done: false, from, msg: '',
 });
 const emptyForm: ScoreForm = { date: '', total: '', q: '', v: '', di: '' };
 const EMPTY_QUEUE = [false, false, false, false, false];
-const ALL_CARDS = DECKS.reduce((n, d) => n + d.cards.length, 0);
 
 /** What a brand-new learner starts with. */
 function freshProgress() {
@@ -142,10 +156,16 @@ function freshProgress() {
     queue: EMPTY_QUEUE,
     streak: 0,
     inRow: 0,
-    boxes: [ALL_CARDS, 0, 0, 0],
     mistakes: [] as Mistake[],
     scores: [] as Score[],
     tests: [] as TestResult[],
+    history: [] as Answer[],
+    ladders: {} as Record<string, Ladder>,
+    cards: {} as Record<string, CardState>,
+    cleared: [] as string[],
+    sprintBest: null as number | null,
+    sprintLast: null as number | null,
+    sprintFacts: [] as [string, string][],
     openPhase: { 0: true, 2: false } as Record<number, boolean>,
     lvl: 0,
     progSec: 0,
@@ -154,16 +174,33 @@ function freshProgress() {
 
 /** The design's sample learner, for demos and the dev panel. */
 function sampleProgress() {
+  const today = dayKey();
   return {
     ...freshProgress(),
-    lastFullDay: dayKey(),
+    lastFullDay: today,
     queue: [true, false, false, false, false],
     streak: 12,
     inRow: 2,
-    boxes: [5, 4, 2, 1],
-    mistakes: INITIAL_MISTAKES,
+    mistakes: INITIAL_MISTAKES.map(({ due, ...m }) => ({ ...m, next: due ? today : addDays(today, INTERVALS[m.box]) })),
     scores: INITIAL_SCORES,
+    cleared: Array.from({ length: 14 }, () => addDays(today, -7)),
+    sprintBest: 161,
+    sprintLast: 178,
+    ...sampleHistory(addDays(today, -1)),
   };
+}
+
+/** Answers that reproduce the design's per-topic accuracy and levels. */
+function sampleHistory(day: string) {
+  const history: Answer[] = [];
+  const ladders: Record<string, Ladder> = {};
+  for (const t of TOPICS) {
+    const pool = QUESTION_LIST.filter(q => q.topic === t.name);
+    if (t.acc == null || !pool.length) continue;
+    for (let i = 0; i < 20; i++) history.push({ qid: pool[i % pool.length].id, ok: i < Math.round(t.acc / 5), sec: 80, day });
+    ladders[t.name] = { level: Math.max(0, t.level), right: 0, wrong: 0 };
+  }
+  return { history, ladders };
 }
 
 function initialTheme(): Theme {
@@ -222,12 +259,75 @@ function newRun(mode: RunMode, list: string[], over?: Partial<Run>): Run {
 /** Numeric seed from the day, so each day's generated sets differ but stay stable within the day. */
 const daySeed = (day: string) => Number(day.replace(/-/g, ''));
 
-/** Record a miss in Mistakes, or send an open one back to the start of its schedule. */
-function withMistake(mistakes: Mistake[], qid: string, reason?: string): Mistake[] {
+/** Record a miss in Mistakes (back tomorrow), or send an open one back to the start of its schedule. */
+function withMistake(mistakes: Mistake[], qid: string, today: string, reason?: string): Mistake[] {
   const q = QUESTIONS[qid];
+  const next = addDays(today, INTERVALS[0]);
   const open = mistakes.find(m => m.qid === qid);
-  if (open) return mistakes.map(m => (m === open ? { ...m, box: 0, due: false, reason: reason ?? m.reason } : m));
-  return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, due: false, qid }, ...mistakes];
+  if (open) return mistakes.map(m => (m === open ? { ...m, box: 0, next, reason: reason ?? m.reason } : m));
+  return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, next, qid }, ...mistakes];
+}
+
+/** Questions answered in the last few days, so drills prefer ones the learner hasn't just seen. */
+const recentIds = (s: AppState) => new Set(s.history.filter(a => a.day >= addDays(s.day, -3)).map(a => a.qid));
+
+/** An adaptive drill for a topic at the learner's level (or the fixed level chosen in Practice). */
+function topicRun(s: AppState, topic: string, section?: Section): Run {
+  const own = QUESTION_LIST.filter(q => q.topic === topic);
+  const pool = own.length ? own : QUESTION_LIST.filter(q => q.section === section);
+  const level = s.lvl > 0 ? s.lvl - 1 : (s.ladders[topic]?.level ?? 0);
+  return newRun('practice', adaptiveDrill(pool, level, recentIds(s), daySeed(s.day) + s.history.length));
+}
+
+/** A mixed set: one question from each of several topics, near each topic's level. */
+function mixedRun(s: AppState, n: number): Run {
+  const topics = [...new Set(QUESTION_LIST.map(q => q.topic))];
+  const picks = adaptiveDrill(
+    topics.map(t => adaptiveDrill(QUESTION_LIST.filter(q => q.topic === t), s.ladders[t]?.level ?? 0, recentIds(s), daySeed(s.day), 1)[0]).map(id => QUESTIONS[id]),
+    2, new Set(), daySeed(s.day) + s.history.length, n,
+  );
+  return newRun('extra', picks);
+}
+
+export function allDecks(s: Pick<AppState, 'sprintFacts'>): Deck[] {
+  return s.sprintFacts.length ? [...DECKS, { name: 'Sprint misses', due: 0, cards: s.sprintFacts }] : DECKS;
+}
+
+/** Indexes of a deck's cards that are due today (never-seen cards count as due). */
+export function dueCards(s: Pick<AppState, 'cards' | 'day' | 'sprintFacts'>, deck: number): number[] {
+  const d = allDecks(s)[deck];
+  return d.cards.map((c, i) => [c, i] as const).filter(([c]) => {
+    const st = s.cards[cardKey(d.name, c[0])];
+    return !st || isDue(st.next, s.day);
+  }).map(([, i]) => i);
+}
+
+/** The deck the daily queue suggests: the one with the most cards due. */
+export function todayDeck(s: Pick<AppState, 'cards' | 'day' | 'sprintFacts'>): number {
+  let best = 0;
+  allDecks(s).forEach((_, i) => {
+    if (dueCards(s, i).length > dueCards(s, best).length) best = i;
+  });
+  return best;
+}
+
+function deckPatch(s: AppState, deck: number, from: Origin, over?: Partial<FlashState>): Partial<AppState> {
+  const due = dueCards(s, deck);
+  const cards = due.length ? due : allDecks(s)[deck].cards.map((_, i) => i);
+  return routeTo('flash', { deck, fl: { ...freshFlash(from, cards), ...over } });
+}
+
+/** Today's numbers for the "Session complete" card. */
+export function todaySummary(s: AppState) {
+  const answers = s.history.filter(a => a.day === s.day);
+  const tomorrow = addDays(s.day, 1);
+  return {
+    accuracy: answers.length ? Math.round((100 * answers.filter(a => a.ok).length) / answers.length) : null,
+    cards: Object.values(s.cards).filter(c => c.last === s.day).length,
+    cleared: s.cleared.filter(d => d === s.day).length,
+    mistakesTomorrow: s.mistakes.filter(m => m.next === tomorrow).length,
+    cardsTomorrow: Object.values(s.cards).filter(c => c.next === tomorrow).length,
+  };
 }
 
 function createActions(set: Set) {
@@ -235,8 +335,7 @@ function createActions(set: Set) {
   const completeQueueItem = (n: number) => set(s => withQueueDone(s, n));
   const startRun = (mode: RunMode, list: string[], over?: Partial<Run>) =>
     go('runner', { run: newRun(mode, list, over) });
-  const openDeck = (deck: number, from: Origin = 'review', over?: Partial<FlashState>) =>
-    go('flash', { deck, fl: { ...freshFlash(from), ...over } });
+  const openDeck = (deck: number, from: Origin = 'review', over?: Partial<FlashState>) => set(s => deckPatch(s, deck, from, over));
   const startSprint = (from: Origin = 'review') => go('sprint', { sp: freshSprint(from) });
   const openLesson = (step = 0) => go('lesson', { les: freshLesson(step) });
 
@@ -258,8 +357,13 @@ function createActions(set: Set) {
       set({ ...freshProgress(), ...routeTo('today') });
     },
 
+    startTopicDrill(topic: string, section?: Section) {
+      set(s => routeTo('runner', { run: topicRun(s, topic, section) }));
+    },
+    startMixed: () => set(s => routeTo('runner', { run: mixedRun(s, 5) })),
+
     queueGo(n: number) {
-      if (n === 0) openDeck(0, 'today');
+      if (n === 0) set(s => deckPatch(s, todayDeck(s), 'today'));
       else if (n === 1) startSprint('today');
       else if (n === 2) openLesson(0);
       else if (n === 3)
@@ -272,7 +376,10 @@ function createActions(set: Set) {
       else set(s => routeTo('runner', { run: newRun('cr', crSet(2, daySeed(s.day))) }));
     },
     startTest(section: TestDef['section']) {
-      set(s => routeTo('runner', { run: newRun('test', buildTest(section, daySeed(s.day) + s.tests.length), { section }) }));
+      set(s => {
+        const first = nextTestQuestion(section, [], [], daySeed(s.day) + s.tests.length)!;
+        return routeTo('runner', { run: newRun('test', [first], { section, length: TESTS[section].length }) });
+      });
     },
 
     tick() {
@@ -291,7 +398,7 @@ function createActions(set: Set) {
     lessonNext() {
       set(s => {
         const L = s.les;
-        if (L.step >= 5) return routeTo('runner', { run: newRun('practice', topicDrill('Percents')) });
+        if (L.step >= 5) return routeTo('runner', { run: topicRun(s, 'Percents') });
         const q = L.step === 3 || L.step === 4 ? LESSON_QUESTIONS[L.step - 3] : null;
         if (q) {
           if (!L.input) return {};
@@ -313,16 +420,31 @@ function createActions(set: Set) {
         const run = s.run;
         if (!run || run.sel == null || run.conf) return {};
         const qid = run.list[run.i];
-        const ok = run.sel === QUESTIONS[qid].ans;
+        const q = QUESTIONS[qid];
+        const ok = run.sel === q.ans;
         const answered = { ...run, answers: [...run.answers, { qid, sel: run.sel, ok, sec: run.sec }] };
-        // Tests reveal nothing until the end.
-        if (run.mode === 'test') return advanceRun({ ...s, run: answered });
-        const reviewing = run.mode === 'review' || run.mode === 'mistakes';
-        return {
-          run: { ...answered, conf: true },
-          inRow: ok ? s.inRow + 1 : 0,
-          ...(!ok && !reviewing ? { mistakes: withMistake(s.mistakes, qid) } : {}),
+        const learned = {
+          history: pushHistory(s.history, { qid, ok, sec: run.sec, day: s.day }),
+          ladders: { ...s.ladders, [q.topic]: climb(s.ladders[q.topic], ok) },
         };
+        // Tests reveal nothing until the end; pick the next question from how this one went.
+        if (run.mode === 'test') {
+          const section = run.section ?? 'Quant';
+          const more = answered.answers.length < (run.length ?? 0);
+          const next = more ? nextTestQuestion(section, run.list, answered.answers.map(a => a.ok), daySeed(s.day) + s.tests.length) : undefined;
+          return { ...learned, ...advanceRun({ ...s, ...learned, run: next ? { ...answered, list: [...run.list, next] } : answered }) };
+        }
+        const reviewing = run.mode === 'review' || run.mode === 'mistakes';
+        let review: Partial<AppState> = {};
+        if (reviewing) {
+          const open = s.mistakes.find(m => m.qid === qid);
+          const after = open && reviewMistake(open, ok, s.day);
+          if (open)
+            review = after
+              ? { mistakes: s.mistakes.map(m => (m === open ? after : m)) }
+              : { mistakes: s.mistakes.filter(m => m !== open), cleared: [...s.cleared, s.day] };
+        } else if (!ok) review = { mistakes: withMistake(s.mistakes, qid, s.day) };
+        return { ...learned, ...review, run: { ...answered, conf: true }, inRow: ok ? s.inRow + 1 : 0 };
       });
     },
     toggleAlt: () => set(s => (s.run ? { run: { ...s.run, alt: !s.run.alt } } : {})),
@@ -330,7 +452,11 @@ function createActions(set: Set) {
       set(s => {
         const run = s.run;
         if (!run) return {};
-        return { run: { ...run, reason: label }, mistakes: withMistake(s.mistakes, run.list[run.i], label) };
+        const qid = run.list[run.i];
+        const open = s.mistakes.find(m => m.qid === qid);
+        // Reviewing an existing miss only retags it; a fresh miss is (re)scheduled.
+        const mistakes = open ? s.mistakes.map(m => (m === open ? { ...m, reason: label } : m)) : withMistake(s.mistakes, qid, s.day, label);
+        return { run: { ...run, reason: label }, mistakes };
       });
     },
     runNext: () => set(advanceRun),
@@ -368,12 +494,23 @@ function createActions(set: Set) {
           const [p, a] = SPRINT[sp.i];
           const ok = Number(sp.input) === a;
           const done = sp.i === SPRINT.length - 1;
+          const ans = [...sp.ans, { p, a, g: sp.input, ok }];
           clearTimeout(flashTimer);
           flashTimer = setTimeout(() => set(s2 => ({ sp: { ...s2.sp, flash: null, msg: '' } })), ok ? 350 : 900);
+          const missed = ans.filter(x => !x.ok).map(x => [x.p, String(x.a)] as [string, string]);
+          const record = done
+            ? {
+                sprintLast: sp.sec,
+                // A best time only counts for a clean run.
+                sprintBest: missed.length === 0 && (s.sprintBest == null || sp.sec < s.sprintBest) ? sp.sec : s.sprintBest,
+                sprintFacts: [...s.sprintFacts, ...missed.filter(([pr]) => !s.sprintFacts.some(f => f[0] === pr))],
+              }
+            : {};
           return {
+            ...record,
             sp: {
               ...sp,
-              ans: [...sp.ans, { p, a, g: sp.input, ok }],
+              ans,
               i: done ? sp.i : sp.i + 1,
               input: '',
               flash: ok ? 'ok' : 'bad',
@@ -432,7 +569,7 @@ function createActions(set: Set) {
         runOver: () => startRun('practice', ['cr-streetlights', 'tbl-sales-pct'], { sel: 1, sec: 131 }),
         runTable: () => startRun('practice', ['tbl-sales-pct'], { sec: 25 }),
         tests: () => go('tests'),
-        testRun: () => startRun('test', buildTest('Quant', 1), { section: 'Quant', sec: 47 }),
+        testRun: () => actions.startTest('Quant'),
         results: () => go('results'),
         review: () => go('review', { nothingDue: false }),
         reviewEmpty: () => go('review', { nothingDue: true }),
@@ -468,8 +605,8 @@ export type JumpKey =
   | 'mistakes' | 'mistakesEmpty' | 'progress' | 'progressEmpty';
 
 export function currentCard(s: AppState) {
-  const cards = DECKS[s.deck].cards;
-  return cards[Math.min(s.fl.i, cards.length - 1)];
+  const cards = allDecks(s)[s.deck].cards;
+  return cards[s.fl.cards[Math.min(s.fl.i, s.fl.cards.length - 1)]];
 }
 
 function advanceRun(s: AppState): Partial<AppState> {
@@ -484,7 +621,7 @@ function advanceRun(s: AppState): Partial<AppState> {
       const section = run.section ?? 'Quant';
       const result = scoreTest(section, run.answers, new Date(), s.day);
       const missed = run.answers.filter(a => !a.ok).map(a => a.qid);
-      return { ...routeTo('results'), tests: [...s.tests, result], mistakes: missed.reduce((ms, qid) => withMistake(ms, qid), s.mistakes) };
+      return { ...routeTo('results'), tests: [...s.tests, result], mistakes: missed.reduce((ms, qid) => withMistake(ms, qid, s.day), s.mistakes) };
     }
     case 'review': return routeTo('mistakes');
     case 'extra': return routeTo('today');
@@ -493,18 +630,12 @@ function advanceRun(s: AppState): Partial<AppState> {
 }
 
 function advanceFlash(s: AppState, known: boolean): Partial<AppState> {
-  const deck = DECKS[s.deck];
+  const deck = allDecks(s)[s.deck];
   const f = s.fl;
-  const b = [...s.boxes];
-  if (known) {
-    if (b[0] > 0) { b[0]--; b[1]++; }
-  } else {
-    b[0]++;
-    if (b[1] > 0) b[1]--;
-  }
-  const last = f.i >= deck.cards.length - 1;
+  const k = cardKey(deck.name, currentCard(s)[0]);
+  const last = f.i >= f.cards.length - 1;
   return {
-    boxes: b,
+    cards: { ...s.cards, [k]: gradeCard(s.cards[k], known, s.day) },
     fl: { ...f, i: last ? f.i : f.i + 1, flipped: false, input: '', checked: false, ok: false, done: last, known: f.known + (known ? 1 : 0) },
   };
 }
@@ -567,7 +698,7 @@ export function useApp(): AppCtx {
 
 export const fmtTime = (sec: number) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
 
-/** Mistakes as displayed: the "nothing due" preview clears every due flag. */
-export function visibleMistakes(s: AppState): Mistake[] {
-  return s.nothingDue ? s.mistakes.map(m => ({ ...m, due: false })) : s.mistakes;
+/** Mistakes with their due flag for today; the dev "nothing due" preview clears every flag. */
+export function visibleMistakes(s: AppState): VisibleMistake[] {
+  return s.mistakes.map(m => ({ ...m, due: !s.nothingDue && isDue(m.next, s.day) }));
 }

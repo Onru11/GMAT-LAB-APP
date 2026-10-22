@@ -107,7 +107,7 @@ export function App() {
                 const on = s.tab === t;
                 const badge = t === 'review' && dueCount ? String(dueCount) : '';
                 return (
-                  <button key={t} onClick={() => a.go(t)} aria-current={on ? 'page' : undefined} aria-label={badge ? `${tabLabel(t)}, ${badge} mistakes due` : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', border: 0, background: 'transparent', color: on ? 'var(--color-accent-700)' : 'var(--muted)', cursor: 'pointer', position: 'relative' }}>
+                  <button key={t} onClick={() => a.go(t)} aria-current={on ? 'page' : undefined} aria-label={badge ? `${tabLabel(t)}, ${badge} ${badge === '1' ? 'mistake' : 'mistakes'} due` : undefined} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', border: 0, background: 'transparent', color: on ? 'var(--color-accent-700)' : 'var(--muted)', cursor: 'pointer', position: 'relative' }}>
                     <span style={{ position: 'absolute', top: -7, left: '30%', right: '30%', height: 2, background: on ? 'var(--color-accent)' : 'transparent' }} />
                     <TabIcon tab={t} size={23} />
                     <span style={{ fontSize: 11, fontWeight: 500 }}>{tabLabel(t)}</span>

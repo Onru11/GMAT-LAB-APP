@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties } from 'react';
-import { TOPICS, levelName, type Section } from '../data';
-import { topicDrill } from '../content/select';
+import { levelName, type Section } from '../data';
+import { topicStats, weakestTopics } from '../stats';
 import { useApp, type ScoreForm } from '../store';
 import { BT, Corners, H2, LevelSegments, MiniSegment, PageHeader, PrimaryButton, heading, rowTop } from '../components/ui';
 
@@ -16,8 +16,8 @@ export function Progress() {
   const sc = s.noScores ? [] : s.scores;
   const X = (i: number) => (sc.length === 1 ? 184 : 54 + (i * 260) / (sc.length - 1));
   const diff = sc.length ? sc[sc.length - 1].total - sc[0].total : 0;
-  const weakest = TOPICS.filter(t => t.acc != null).sort((x, y) => x.acc! - y.acc!).slice(0, 3);
-  const table = TOPICS.filter(t => t.sec === SECTIONS[s.progSec]).sort((x, y) => (x.acc ?? 999) - (y.acc ?? 999));
+  const weakest = weakestTopics(s);
+  const table = topicStats(s).filter(t => t.sec === SECTIONS[s.progSec]).sort((x, y) => (x.acc ?? 999) - (y.acc ?? 999));
 
   const field = (k: keyof ScoreForm, label: string, placeholder: string, numeric = true) => (
     <div className="field">
@@ -101,8 +101,9 @@ export function Progress() {
       <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <H2>Weakest topics</H2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {!weakest.length && <div style={{ padding: '14px', border: '1px dashed var(--color-divider)', fontSize: 14, color: 'var(--muted)' }}>Drill a few topics and your weakest three show up here.</div>}
           {weakest.map(t => (
-            <button key={t.name} className="hover-edge" onClick={() => a.startRun('practice', topicDrill(t.name, t.sec))} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer' }}>
+            <button key={t.name} className="hover-edge" onClick={() => a.startTopicDrill(t.name, t.sec)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer' }}>
               <span style={{ ...heading, fontSize: 22, color: 'var(--bad)', width: 46, fontVariantNumeric: 'tabular-nums' }}>{t.acc}%</span>
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontWeight: 500 }}>{t.name}</span>

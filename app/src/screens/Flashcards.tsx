@@ -1,13 +1,20 @@
-import { DECKS, LEITNER_BOXES } from '../data';
-import { currentCard, useApp } from '../store';
+import { LEITNER_BOXES } from '../data';
+import { cardKey, knownInterval } from '../progress';
+import { allDecks, currentCard, useApp } from '../store';
 import { CloseButton, Corners, DoneBadge, FocusTitle, MiniSegment, PrimaryButton, ProgressLine, heading, tabular } from '../components/ui';
 
 const face = { position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } as const;
 
 export function Flashcards() {
   const { s, a } = useApp();
-  const deck = DECKS[s.deck];
+  const deck = allDecks(s)[s.deck];
   const F = s.fl;
+  const total = F.cards.length;
+  const state = s.cards[cardKey(deck.name, currentCard(s)[0])];
+  // Cards per Leitner box for this deck; unseen cards sit in box 1.
+  const boxes = [0, 0, 0, 0];
+  deck.cards.forEach(c => boxes[s.cards[cardKey(deck.name, c[0])]?.box ?? 0]++);
+  const days = knownInterval(state);
   const [front, back] = currentCard(s);
   const isType = F.mode === 'type';
   const fromToday = F.from === 'today';
@@ -16,10 +23,10 @@ export function Flashcards() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <CloseButton onClick={() => a.go(fromToday ? 'today' : 'review')} />
-        <FocusTitle title={deck.name} meta={`Card ${F.i + 1} of ${deck.cards.length}`} />
+        <FocusTitle title={deck.name} meta={`Card ${F.i + 1} of ${total}`} />
         <MiniSegment options={[['Learn', 'learn'], ['Type', 'type']]} value={F.mode} onChange={a.setFlashMode} />
       </div>
-      <ProgressLine pct={((F.i + (F.done ? 1 : 0)) / deck.cards.length) * 100} />
+      <ProgressLine pct={((F.i + (F.done ? 1 : 0)) / total) * 100} />
 
       {!F.done ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
@@ -62,7 +69,7 @@ export function Flashcards() {
                 <span style={{ fontSize: 11, color: 'var(--muted)' }}>
                   Box {i + 1} · {days}
                 </span>
-                <span style={{ ...heading, fontSize: 20, lineHeight: 1, ...tabular }}>{s.boxes[i]}</span>
+                <span style={{ ...heading, fontSize: 20, lineHeight: 1, ...tabular }}>{boxes[i]}</span>
               </div>
             ))}
           </div>
@@ -75,7 +82,7 @@ export function Flashcards() {
                   Again · 1 day
                 </button>
                 <PrimaryButton onClick={() => a.flashGrade(true)} style={{ flex: 1, height: 52, fontSize: 16 }}>
-                  Got it · 3 days
+                  Got it · {days} {days === 1 ? 'day' : 'days'}
                 </PrimaryButton>
               </>
             ) : (
@@ -91,7 +98,7 @@ export function Flashcards() {
           <DoneBadge />
           <div style={{ ...heading, fontSize: 28, lineHeight: 1 }}>Deck done</div>
           <div style={{ fontSize: 15 }}>
-            {F.known} of {deck.cards.length} known. Misses come back tomorrow; the rest in 3 to 14 days.
+            {F.known} of {total} known. Misses come back tomorrow; the rest in 1 to 14 days, depending on their box.
           </div>
           <PrimaryButton onClick={a.flashFinish} style={{ height: 48, fontSize: 16, marginTop: 6 }}>
             {fromToday ? 'Back to Today' : 'Back to Review'}

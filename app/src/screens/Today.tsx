@@ -1,28 +1,42 @@
 import type { CSSProperties } from 'react';
-import { QUEUE, SECTION_ESTIMATES } from '../data';
-import { mixedDrill } from '../content/select';
-import { useApp, visibleMistakes } from '../store';
+import { QUEUE } from '../data';
+import { allDecks, dueCards, fmtTime, todayDeck, todaySummary, useApp, visibleMistakes } from '../store';
+import { estimate, weakestTopics } from '../stats';
 import { ArrowRight, BT, CheckIcon, Corners, DoneBadge, FlameIcon, H2, Kicker, heading, rowTop, tabular } from '../components/ui';
 
 const dateLabel = (d = new Date()) =>
   d.toLocaleDateString('en-US', { weekday: 'long' }) + ' · ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 const pct = (v: number) => Math.max(0, Math.min(100, ((v - 205) / 600) * 100)) + '%';
-const BASELINE = 375;
 
 export function Today() {
   const { s, a, desk } = useApp();
-  const lastOfficial = s.noScores ? null : s.scores[s.scores.length - 1];
-  const estTotal = lastOfficial ? lastOfficial.total + 10 : 455;
-  const toGo = Math.max(0, s.target - estTotal);
+  const est = estimate(s);
+  const estTotal = est.total;
+  const toGo = estTotal == null ? null : Math.max(0, s.target - estTotal);
+  const weakest = weakestTopics(s, 1)[0];
+  const deckIdx = todayDeck(s);
+  const deck = allDecks(s)[deckIdx];
+  const cardsDue = dueCards(s, deckIdx).length;
+  const summary = todaySummary(s);
   const nextIdx = s.queue.findIndex(d => !d);
   const allDone = nextIdx === -1;
   const due = visibleMistakes(s).filter(m => m.due);
   const dueCount = due.length;
   const dueTopics = [...new Set(due.map(m => m.topic))].join(', ');
-  const queue = QUEUE.map((q, i) =>
-    i !== 3 ? q : { ...q, meta: dueCount ? `${dueCount} due · ${dueTopics}` : 'Nothing due today', why: dueCount ? `${dueCount === 1 ? 'One miss is' : dueCount + ' misses are'} due today. Clean answers move them toward cleared.` : 'Nothing is due, so this one is a quick check-off.' },
-  );
+  const live = [
+    { meta: `${deck.name} · ${cardsDue || 'none'} due`, min: Math.max(2, Math.ceil(cardsDue / 3)) },
+    { meta: `20 items · ${s.sprintLast != null ? `last ${fmtTime(s.sprintLast)}` : 'first run'}${s.sprintBest != null ? `, best ${fmtTime(s.sprintBest)}` : ''}` },
+    {},
+    {
+      meta: dueCount ? `${dueCount} due · ${dueTopics}` : 'Nothing due today',
+      why: dueCount ? `${dueCount === 1 ? 'One miss is' : dueCount + ' misses are'} due today. Clean answers move them toward cleared.` : 'Nothing is due, so this one is a quick check-off.',
+      min: Math.max(1, dueCount * 2),
+    },
+    { meta: '2 questions · timed' },
+  ];
+  const queue = QUEUE.map((q, i) => ({ ...q, ...live[i] }));
+  const queueMin = queue.reduce((n, q) => n + q.min, 0);
   const next = queue[allDone ? 0 : nextIdx];
   const doneCount = s.queue.filter(Boolean).length;
 
@@ -51,43 +65,43 @@ export function Today() {
               <div>
                 <Kicker>Estimated score</Kicker>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ ...heading, ...tabular, fontSize: 64, lineHeight: 1, letterSpacing: '-.02em' }}>{estTotal}</span>
+                  <span style={{ ...heading, ...tabular, fontSize: 64, lineHeight: 1, letterSpacing: '-.02em' }}>{estTotal ?? '—'}</span>
                   <span style={{ fontSize: 14, color: 'var(--muted)' }}>of 805</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <Kicker>To target</Kicker>
-                <div style={{ ...heading, fontSize: 28, lineHeight: 1.1, color: 'var(--color-accent-700)' }}>+{toGo}</div>
+                <div style={{ ...heading, fontSize: 28, lineHeight: 1.1, color: 'var(--color-accent-700)' }}>{toGo == null ? s.target : `+${toGo}`}</div>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 14 }}>
               <div style={{ position: 'relative', height: 10, border: BT, background: 'var(--color-surface)' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct(estTotal), background: 'var(--color-accent)', transformOrigin: 'left', animation: 'grow .8s cubic-bezier(.2,.7,.2,1)' }} />
-                <div style={{ position: 'absolute', left: pct(BASELINE), top: -3, bottom: -3, width: 1, background: 'var(--muted)' }} />
+                {estTotal != null && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct(estTotal), background: 'var(--color-accent)', transformOrigin: 'left', animation: 'grow .8s cubic-bezier(.2,.7,.2,1)' }} />}
+                {est.base != null && <div style={{ position: 'absolute', left: pct(est.base), top: -3, bottom: -3, width: 1, background: 'var(--muted)' }} />}
                 <div style={{ position: 'absolute', left: pct(s.target), top: -16, bottom: -5, width: 2, background: 'var(--color-text)' }} />
                 <div style={{ position: 'absolute', left: pct(s.target), top: -19, transform: 'translateX(6px)', ...heading, fontSize: 13, lineHeight: 1 }}>{s.target}</div>
               </div>
               <div style={{ position: 'relative', height: 16, fontSize: 11, color: 'var(--muted)', ...tabular }}>
                 <span style={{ position: 'absolute', left: 0 }}>205</span>
-                <span style={{ position: 'absolute', left: pct(BASELINE), transform: 'translateX(-50%)' }}>Start {BASELINE}</span>
+                {est.base != null && <span style={{ position: 'absolute', left: pct(est.base), transform: 'translateX(-50%)' }}>Start {est.base}</span>}
                 <span style={{ position: 'absolute', right: 0 }}>805</span>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: BT }}>
-              {SECTION_ESTIMATES.map(([name, val, base], i) => (
+              {est.sections.map(({ name, val, delta }, i) => (
                 <div key={name} style={{ padding: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 4, borderLeft: rowTop(i), paddingLeft: i ? 12 : 0 }}>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>{name}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ ...heading, ...tabular, fontSize: 28, lineHeight: 1 }}>{val}</span>
-                    <span style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 500 }}>+{val - base}</span>
+                    <span style={{ ...heading, ...tabular, fontSize: 28, lineHeight: 1 }}>{val ?? '—'}</span>
+                    {delta != null && delta !== 0 && <span style={{ fontSize: 12, color: delta > 0 ? 'var(--ok)' : 'var(--bad)', fontWeight: 500 }}>{delta > 0 ? '+' : '−'}{Math.abs(delta)}</span>}
                   </div>
                   <div style={{ height: 3, background: 'var(--color-divider)', marginRight: 12 }}>
-                    <div style={{ height: '100%', width: ((val - 60) / 30) * 100 + '%', background: 'var(--color-accent)' }} />
+                    <div style={{ height: '100%', width: val == null ? 0 : ((val - 60) / 30) * 100 + '%', background: 'var(--color-accent)' }} />
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{lastOfficial ? `From your last official exam (${lastOfficial.total}) and recent drill answers.` : 'From drills only until you log an official exam.'} Sections scale 60–90.</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{est.note} Sections scale 60–90.</div>
           </section>
 
           {desk && (
@@ -98,7 +112,7 @@ export function Today() {
               </button>
               <button className="hover-edge" onClick={() => a.go('progress')} style={quickTile}>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>Weakest topic</span>
-                <span style={{ ...heading, fontSize: 22 }}>Rates &amp; work · 49%</span>
+                <span style={{ ...heading, fontSize: 22 }}>{weakest ? `${weakest.name} · ${weakest.acc}%` : 'Not enough answers yet'}</span>
               </button>
             </div>
           )}
@@ -128,18 +142,20 @@ export function Today() {
               <DoneBadge size={52} icon={28} delay={0.2} />
               <div>
                 <div style={{ ...heading, fontSize: 32, lineHeight: 1 }}>Session complete</div>
-                <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>28 min · 5 of 5 done · streak now {s.streak} days</div>
+                <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>5 of 5 done · streak now {s.streak} {s.streak === 1 ? 'day' : 'days'}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', width: '100%', borderTop: BT, paddingTop: 12, gap: 8 }}>
-                {[['Accuracy', '78%'], ['Cards', '12'], ['Cleared', '1']].map(([k, v]) => (
+                {[['Accuracy', summary.accuracy == null ? '—' : summary.accuracy + '%'], ['Cards', String(summary.cards)], ['Cleared', String(summary.cleared)]].map(([k, v]) => (
                   <div key={k}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>{k}</div>
                     <div style={{ ...heading, fontSize: 24 }}>{v}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.45 }}>Tomorrow: lesson “Watch the question word”, 14 cards and 2 mistakes come back.</div>
-              <button className="btn btn-secondary" onClick={() => a.startRun('extra', mixedDrill(5, Date.now()))} style={{ height: 44, fontSize: 15, width: '100%' }}>
+              <div style={{ fontSize: 14, lineHeight: 1.45 }}>
+                Tomorrow: {summary.cardsTomorrow} {summary.cardsTomorrow === 1 ? 'card' : 'cards'} and {summary.mistakesTomorrow} {summary.mistakesTomorrow === 1 ? 'mistake' : 'mistakes'} come back.
+              </div>
+              <button className="btn btn-secondary" onClick={a.startMixed} style={{ height: 44, fontSize: 15, width: '100%' }}>
                 Optional: 5-question mixed drill
               </button>
             </section>
@@ -148,7 +164,7 @@ export function Today() {
           <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <H2>Today’s queue</H2>
-              <span style={{ fontSize: 13, color: 'var(--muted)' }}>{doneCount} of 5 done · ~28 min</span>
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>{doneCount} of 5 done · ~{queueMin} min</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', border: BT, background: 'var(--color-bg)' }}>
               {queue.map((q, i) => {

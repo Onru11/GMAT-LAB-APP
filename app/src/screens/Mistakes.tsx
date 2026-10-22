@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties } from 'react';
-import { MISTAKE_DAYS, type Mistake } from '../data';
-import { useApp, visibleMistakes } from '../store';
+import { addDays, daysBetween } from '../progress';
+import { useApp, visibleMistakes, type VisibleMistake } from '../store';
 import { BT, BackLink, CheckIcon, H2, Kicker, PrimaryButton, heading, rowTop } from '../components/ui';
 
 const INTERVALS = ['1d', '3d', '7d', '14d'];
@@ -10,13 +10,14 @@ export function Mistakes() {
   const { s, a } = useApp();
   const mistakes = visibleMistakes(s);
   const due = mistakes.filter(m => m.due);
-  const groups = new Map<string, Mistake[]>();
+  const groups = new Map<string, VisibleMistake[]>();
+  const tomorrow = mistakes.filter(m => m.next === addDays(s.day, 1)).length;
   mistakes.forEach(m => groups.set(m.topic, [...(groups.get(m.topic) ?? []), m]));
 
   const counters: [string, number, string][] = [
     ['Open', mistakes.length, 'var(--color-text)'],
     ['Due now', due.length, due.length ? 'var(--color-accent-700)' : 'var(--ok)'],
-    ['Cleared', 14, 'var(--ok)'],
+    ['Cleared', s.cleared.length, 'var(--ok)'],
   ];
 
   return (
@@ -73,7 +74,7 @@ export function Mistakes() {
             <CheckIcon size={22} width={1.5} />
           </span>
           <span style={{ ...heading, fontSize: 22 }}>Nothing due right now</span>
-          <span style={{ fontSize: 14, color: 'var(--muted)', textWrap: 'pretty' } as CSSProperties}>2 mistakes come back tomorrow. Misses from today’s drills will appear here automatically.</span>
+          <span style={{ fontSize: 14, color: 'var(--muted)', textWrap: 'pretty' } as CSSProperties}>{tomorrow ? `${tomorrow} ${tomorrow === 1 ? 'mistake comes' : 'mistakes come'} back tomorrow. ` : ''}Misses from your drills and tests appear here automatically.</span>
         </div>
       )}
 
@@ -86,7 +87,7 @@ export function Mistakes() {
               <span>{items.length}</span>
             </Kicker>
             {items.map((m, i) => {
-              const days = MISTAKE_DAYS[m.box];
+              const days = Math.max(1, daysBetween(s.day, m.next));
               return (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', border: BT, background: 'var(--color-bg)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>

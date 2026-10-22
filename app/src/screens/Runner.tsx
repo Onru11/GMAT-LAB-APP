@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { LETTERS, LEVELS, MISS_REASONS } from '../data';
 import { QUESTIONS } from '../content/questions';
+import { UP_AFTER } from '../progress';
 import { fmtTime, useApp, type RunMode } from '../store';
 import { ArrowRight, BT, CheckIcon, CloseButton, Corners, Kicker, PrimaryButton, Svg, heading, tabular } from '../components/ui';
 
@@ -24,10 +25,14 @@ export function Runner() {
   const total = run.list.length;
   const last = run.i === run.list.length - 1;
   const timer = fmtTime(run.sec);
+  // The topic ladder has already counted this answer.
+  const lad = s.ladders[q.topic] ?? { level: 0, right: 0, wrong: 0 };
+  const leveledUp = correct && lad.right === 0;
+  const ladder = { level: lad.level, right: lad.right, leveledUp, before: leveledUp ? (UP_AFTER - 1) / UP_AFTER : Math.max(0, lad.right - 1) / UP_AFTER, after: leveledUp ? 1 : lad.right / UP_AFTER };
   const close = () => a.go(test ? 'tests' : run.mode === 'practice' ? 'practice' : run.mode === 'review' ? 'mistakes' : 'today');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div data-qid={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 0, zIndex: 2, background: 'var(--color-bg)', margin: '-4px -4px 0', padding: '4px 4px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <CloseButton onClick={close} />
@@ -168,12 +173,12 @@ export function Runner() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 2px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
-                    <span>{q.topic} · toward Solid ~600</span>
-                    <span>4 of 6</span>
+                    <span>{ladder.leveledUp ? `${q.topic} · up to ${LEVELS[ladder.level]}` : ladder.level >= 4 ? `${q.topic} · top level` : `${q.topic} · toward ${LEVELS[ladder.level + 1]}`}</span>
+                    <span>{ladder.leveledUp ? 'Level up' : `${ladder.right} of ${UP_AFTER} in a row`}</span>
                   </div>
                   <div style={{ height: 5, background: 'var(--color-divider)', position: 'relative' }}>
-                    <div style={{ position: 'absolute', inset: 0, width: '50%', background: 'var(--color-accent)' }} />
-                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: '16.7%', background: 'var(--ok)', transformOrigin: 'left', animation: 'grow .6s .35s both' }} />
+                    <div style={{ position: 'absolute', inset: 0, width: ladder.before * 100 + '%', background: 'var(--color-accent)' }} />
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: ladder.before * 100 + '%', width: (ladder.after - ladder.before) * 100 + '%', background: 'var(--ok)', transformOrigin: 'left', animation: 'grow .6s .35s both' }} />
                   </div>
                 </div>
               </>

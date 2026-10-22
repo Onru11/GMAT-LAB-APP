@@ -1,5 +1,5 @@
-import { LEVELS, TOOLS, TOPICS, levelName, type Section } from '../data';
-import { topicDrill } from '../content/select';
+import { LEVELS, TOOLS, levelName, type Section } from '../data';
+import { topicStats } from '../stats';
 import { useApp } from '../store';
 import { BT, ChevronRight, Corners, H2, Kicker, LevelSegments, PageHeader, Svg, heading, rowTop, tabular } from '../components/ui';
 
@@ -9,6 +9,7 @@ const SECTIONS: Section[] = ['Quant', 'Data Insights', 'Verbal'];
 export function Practice() {
   const { s, a } = useApp();
   const lastTest = s.tests[s.tests.length - 1];
+  const topics = topicStats(s);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader kicker="Drills · tests · toolkit" title="Practice" />
@@ -32,7 +33,7 @@ export function Practice() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Kicker>Drill level</Kicker>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{s.lvl === 0 ? 'Moves up after 3 right in a row' : 'Fixed at ' + LEVELS[s.lvl - 1]}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{s.lvl === 0 ? 'Up after 3 right in a row, down after 2 wrong' : 'Fixed at ' + LEVELS[s.lvl - 1]}</span>
         </div>
         <div style={{ display: 'flex', border: BT, background: 'var(--color-bg)', overflowX: 'auto' }} role="group" aria-label="Drill level">
           {DRILL_LEVELS.map((name, i) => {
@@ -50,11 +51,11 @@ export function Practice() {
         <section key={sec} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <H2>{sec}</H2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,160px),1fr))', gap: 8 }}>
-            {TOPICS.filter(t => t.sec === sec).map(t => (
+            {topics.filter(t => t.sec === sec).map(t => (
               <button
                 key={t.name}
                 className="hover-tile press-tile"
-                onClick={() => a.startRun('practice', topicDrill(t.name, t.sec))}
+                onClick={() => a.startTopicDrill(t.name, t.sec)}
                 style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer', minHeight: 92 }}
               >
                 <span style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.25, flex: 1 }}>{t.name}</span>
