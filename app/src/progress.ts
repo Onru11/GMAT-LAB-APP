@@ -2,7 +2,8 @@
 // mistakes and flashcards, and the score estimate. Pure functions over plain
 // data, no React or storage, so every rule here is unit-tested.
 
-import { QUESTIONS, QUESTION_LIST, type Question, type Section } from './content/questions';
+import { QUESTIONS, QUESTION_LIST } from './content/bank';
+import type { Question, Section } from './content/questions';
 import { sectionScore, seededShuffle } from './content/select';
 
 /** Spacing ladder shared by mistakes and flashcards: box 0 → 1 day … box 3 → 14 days. */

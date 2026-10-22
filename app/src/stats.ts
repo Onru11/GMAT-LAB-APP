@@ -13,8 +13,12 @@ export function topicStats(s: Pick<AppState, 'history' | 'ladders'>): Topic[] {
   });
 }
 
+/** Lowest recent accuracy first; a topic needs a few answers before it can count as weak. */
 export const weakestTopics = (s: Pick<AppState, 'history' | 'ladders'>, n = 3) =>
-  topicStats(s).filter(t => t.acc != null).sort((a, b) => a.acc! - b.acc!).slice(0, n);
+  TOPICS.map(t => ({ ...t, ...topicStat(t.name, s.history, s.ladders) }))
+    .filter(t => t.acc != null && t.answered >= 3)
+    .sort((a, b) => a.acc! - b.acc!)
+    .slice(0, n);
 
 const SECTIONS: Section[] = ['Quant', 'Verbal', 'Data Insights'];
 const OFFICIAL_KEY = { Quant: 'q', Verbal: 'v', 'Data Insights': 'di' } as const;

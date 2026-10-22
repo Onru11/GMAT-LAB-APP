@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react';
 import { QUEUE } from '../data';
 import { allDecks, dueCards, fmtTime, todayDeck, todaySummary, useApp, visibleMistakes } from '../store';
 import { estimate, weakestTopics } from '../stats';
+import { focusCopy, todaysFocus } from '../plan';
+import { lessonsFor, nextLesson } from '../content/lessons/curriculum';
+import { daysBetween } from '../progress';
 import { ArrowRight, BT, CheckIcon, Corners, DoneBadge, FlameIcon, H2, Kicker, heading, rowTop, tabular } from '../components/ui';
 
 const dateLabel = (d = new Date()) =>
@@ -19,6 +22,7 @@ export function Today() {
   const deck = allDecks(s)[deckIdx];
   const cardsDue = dueCards(s, deckIdx).length;
   const summary = todaySummary(s);
+  const lesson = nextLesson(s.lessonsDone);
   const nextIdx = s.queue.findIndex(d => !d);
   const allDone = nextIdx === -1;
   const due = visibleMistakes(s).filter(m => m.due);
@@ -27,13 +31,15 @@ export function Today() {
   const live = [
     { meta: `${deck.name} · ${cardsDue || 'none'} due`, min: Math.max(2, Math.ceil(cardsDue / 3)) },
     { meta: `20 items · ${s.sprintLast != null ? `last ${fmtTime(s.sprintLast)}` : 'first run'}${s.sprintBest != null ? `, best ${fmtTime(s.sprintBest)}` : ''}` },
-    {},
+    lesson
+      ? { title: `Lesson: ${lesson.title}`, meta: `${lesson.topic} · lesson ${lesson.order} of ${lessonsFor(lesson.topic).length}`, why: `${lesson.rule.headline} Learn the method before you drill it.` }
+      : { title: `Drill: ${weakest?.name ?? 'mixed topics'}`, meta: 'Every lesson done · weakest topic', why: 'You’ve finished every lesson. Keep the weakest topic moving.', verb: 'drill' },
     {
       meta: dueCount ? `${dueCount} due · ${dueTopics}` : 'Nothing due today',
       why: dueCount ? `${dueCount === 1 ? 'One miss is' : dueCount + ' misses are'} due today. Clean answers move them toward cleared.` : 'Nothing is due, so this one is a quick check-off.',
       min: Math.max(1, dueCount * 2),
     },
-    { meta: '2 questions · timed' },
+    focusCopy(todaysFocus(s)),
   ];
   const queue = QUEUE.map((q, i) => ({ ...q, ...live[i] }));
   const queueMin = queue.reduce((n, q) => n + q.min, 0);
@@ -46,7 +52,7 @@ export function Today() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <Kicker>{dateLabel()}</Kicker>
+          <Kicker>{dateLabel()}{s.examDate ? ` · ${Math.max(0, daysBetween(s.day, s.examDate))} days to exam` : ''}</Kicker>
           <h1 style={{ margin: '2px 0 0', fontSize: 38, lineHeight: 1 }}>Today</h1>
         </div>
         {!desk && (

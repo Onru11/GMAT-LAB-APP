@@ -1,6 +1,9 @@
 import { Fragment, type CSSProperties } from 'react';
 import { levelName, type Section } from '../data';
 import { topicStats, weakestTopics } from '../stats';
+import { Backup, Insights } from './Insights';
+import { PHASE_COPY, daysToExam, phaseFor } from '../plan';
+import { addDays } from '../progress';
 import { useApp, type ScoreForm } from '../store';
 import { BT, Corners, H2, LevelSegments, MiniSegment, PageHeader, PrimaryButton, heading, rowTop } from '../components/ui';
 
@@ -30,6 +33,7 @@ export function Progress() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader kicker="Official practice exams" title="Progress" />
+      <PlanCard />
 
       {sc.length > 0 ? (
         <>
@@ -147,6 +151,8 @@ export function Progress() {
         </table>
       </section>
 
+      <Insights />
+
       <section className="blueprint" style={{ background: 'var(--color-bg)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Corners />
         <div>
@@ -176,6 +182,47 @@ export function Progress() {
           Save score
         </PrimaryButton>
       </section>
+
+      <Backup />
     </div>
+  );
+}
+
+/** The learner's goal and plan, editable. */
+function PlanCard() {
+  const { s, a } = useApp();
+  const days = daysToExam(s.day, s.examDate);
+  const phase = PHASE_COPY[phaseFor(days)];
+  return (
+    <section className="blueprint" style={{ background: 'var(--color-bg)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Corners />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        <span style={{ ...heading, fontSize: 20 }}>Your plan · {phase.name}</span>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{s.examDate ? `${days} days to exam` : 'Exam not booked'}</span>
+      </div>
+      <div style={{ fontSize: 14, color: 'var(--muted)' }}>{phase.what}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        <div className="field">
+          <label htmlFor="plan-target">Target</label>
+          <select id="plan-target" className="input" value={s.target} onChange={e => a.setPlan({ target: Number(e.target.value) })}>
+            {[555, 605, 655, 705, 745, 805].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="plan-date">Exam date</label>
+          <input id="plan-date" className="input" type="date" min={addDays(s.day, 1)} value={s.examDate ?? ''} onChange={e => a.setPlan({ examDate: e.target.value || null })} />
+        </div>
+        <div className="field">
+          <label htmlFor="plan-min">Per day</label>
+          <select id="plan-min" className="input" value={s.dailyMin} onChange={e => a.setPlan({ dailyMin: Number(e.target.value) })}>
+            {[15, 30, 45, 60].map(v => (
+              <option key={v} value={v}>{v} min</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </section>
   );
 }

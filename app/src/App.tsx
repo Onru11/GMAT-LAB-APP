@@ -1,8 +1,10 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppContext, FULLSCREEN, useAppStore, visibleMistakes, type Route, type Tab } from './store';
 import { BT, FlameIcon } from './components/ui';
+import { daysBetween } from './progress';
 import { DevPanel } from './components/DevPanel';
 import { Today } from './screens/Today';
+import { Welcome } from './screens/Welcome';
 import { Learn } from './screens/Learn';
 import { Lesson } from './screens/Lesson';
 import { Practice } from './screens/Practice';
@@ -15,7 +17,7 @@ import { Mistakes } from './screens/Mistakes';
 import { Progress } from './screens/Progress';
 
 const SCREENS: Record<Route, () => JSX.Element | null> = {
-  today: Today, learn: Learn, lesson: Lesson, practice: Practice, tests: Tests, results: Results,
+  welcome: Welcome, today: Today, learn: Learn, lesson: Lesson, practice: Practice, tests: Tests, results: Results,
   runner: Runner, review: Review, flash: Flashcards, sprint: Sprint, mistakes: Mistakes, progress: Progress,
 };
 
@@ -60,6 +62,9 @@ export function App() {
   const full = !!FULLSCREEN[s.route];
   const dueCount = visibleMistakes(s).filter(m => m.due).length;
   const Screen = SCREENS[s.route];
+  const examLine = s.examDate
+    ? `Exam ${new Date(s.examDate + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${Math.max(0, daysBetween(s.day, s.examDate))} days`
+    : `Target ${s.target} · exam not booked`;
 
   // New screen, new question or new lesson step: start at the top.
   useEffect(() => {
@@ -69,7 +74,7 @@ export function App() {
   return (
     <AppContext.Provider value={{ s, a, desk }}>
       <div className="app">
-        {desk && (
+        {desk && s.route !== 'welcome' && (
           <nav aria-label="Main" style={{ flex: 'none', width: 232, borderRight: BT, background: 'var(--color-bg)', display: 'flex', flexDirection: 'column', padding: '22px 14px', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 22px' }}>
               <span style={{ width: 22, height: 22, border: '1.5px solid var(--color-accent)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 600, color: 'var(--color-accent)' }}>G</span>
@@ -89,7 +94,7 @@ export function App() {
                 <FlameIcon />
                 {s.streak}-day streak
               </div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Exam target · April 2027</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>{examLine}</div>
             </div>
           </nav>
         )}

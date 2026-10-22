@@ -5,4 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Questions and lessons change less often than the app; a separate chunk caches independently.
+        manualChunks: id => (id.includes('/src/content/') ? 'content' : id.includes('node_modules') ? 'vendor' : undefined),
+      },
+    },
+  },
 });

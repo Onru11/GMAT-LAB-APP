@@ -75,6 +75,8 @@ export function Results() {
   const n = s.tests.filter(x => x.section === t.section).length;
   const prev = [...s.tests].slice(0, -1).reverse().find(x => x.section === t.section);
   const delta = prev ? t.score - prev.score : null;
+  // Tests saved before answers were stored have neither field.
+  const unanswered = t.unanswered ?? 0;
   const misses = t.total - t.right;
   const limit = TESTS[t.section].minutes * 60;
   const stat = (label: string, value: string, color?: string) => (
@@ -99,9 +101,10 @@ export function Results() {
           )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'flex-end' }}>
-          {stat('Right', `${t.right} / ${t.total}`)}
+          {stat('Right', `${t.right} / ${t.total + unanswered}`)}
           {stat('Time', `${fmtTime(t.seconds)} / ${fmtTime(limit)}`, t.seconds > limit ? 'var(--bad)' : undefined)}
           {stat('Over 2:00', `${t.over} question${t.over === 1 ? '' : 's'}`, t.over ? 'var(--bad)' : undefined)}
+          {unanswered > 0 && stat('Unanswered', `${unanswered}`, 'var(--bad)')}
         </div>
       </section>
       <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -125,6 +128,11 @@ export function Results() {
         </div>
       </section>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {t.answers?.length > 0 && (
+          <button className="btn btn-secondary" onClick={() => a.reviewTest(0)} style={{ height: 46, fontSize: 16 }}>
+            Review every answer
+          </button>
+        )}
         {misses > 0 && (
           <PrimaryButton onClick={() => a.go('mistakes')} style={{ height: 48, fontSize: 16 }}>
             Review the {misses} {misses === 1 ? 'miss' : 'misses'}

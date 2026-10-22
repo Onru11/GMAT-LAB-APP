@@ -4,14 +4,6 @@
 import type { Section } from './content/questions';
 export type { Section };
 
-export interface LessonQuestion {
-  label: string;
-  head: string;
-  ans: number;
-  ok: string;
-  bad: string;
-}
-
 export interface Deck {
   name: string;
   due: number;
@@ -66,23 +58,6 @@ export const LEVELS = ['Foundation', 'Building', 'Solid ~600', 'Strong ~655', 'E
 export const levelName = (l: number) => (l < 0 ? 'Not started' : LEVELS[l]);
 export const LETTERS = 'ABCDE';
 export const MISS_REASONS = ["Didn't know how", 'Careless slip', 'Misread the question', 'Rushed or too slow'];
-
-export const LESSON_QUESTIONS: LessonQuestion[] = [
-  {
-    label: 'Guided question 1 of 2',
-    head: 'A stock rises 50%, then falls 50%. Its final value is what percent of the original?',
-    ans: 75,
-    ok: '1.5 × 0.5 = 0.75. Down 25% overall.',
-    bad: 'Multiply the multipliers: 1.5 × 0.5.',
-  },
-  {
-    label: 'Guided question 2 of 2 · Watch the question word',
-    head: 'A salary rises 10%, then rises another 20%. By what percent did it increase in total?',
-    ans: 32,
-    ok: '1.1 × 1.2 = 1.32, so +32%. The question asks for the increase, not the final percent.',
-    bad: 'Not 30%. Try 1.1 × 1.2, then subtract 100%.',
-  },
-];
 
 export const LESSON_STEPS = 5;
 
@@ -181,14 +156,6 @@ export const PHASES: Phase[] = [
       { name: 'Exam-day strategy', level: -1, status: 'Locked' },
     ],
   },
-];
-
-export const PERCENT_LESSONS: [mark: string, name: string, current: boolean][] = [
-  ['✓', 'Percent basics', false],
-  ['✓', 'Percent change', false],
-  ['→', 'Two changes in a row', true],
-  ['4', 'Watch the question word', false],
-  ['5', 'Reverse percents', false],
 ];
 
 export const INITIAL_MISTAKES: SampleMistake[] = [

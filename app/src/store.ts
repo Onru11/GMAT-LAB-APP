@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { PERSISTED, clearProgress, dayKey, loadProgress, rollOver, saveProgress } from './persist';
-import { DECKS, INITIAL_MISTAKES, INITIAL_SCORES, LESSON_QUESTIONS, SPRINT, TOPICS, type Deck, type Score } from './data';
-import { QUESTIONS, QUESTION_LIST, type Section } from './content/questions';
-import { TESTS, crSet, questionTitle, scoreTest, type AnswerRecord, type TestDef, type TestResult } from './content/select';
+import { PERSISTED, clearProgress, dayKey, loadProgress, parseProgress, rollOver, saveProgress } from './persist';
+import { DECKS, INITIAL_MISTAKES, INITIAL_SCORES, SPRINT, TOPICS, type Deck, type Score } from './data';
+import { CURRICULUM, LESSON_BY_ID, nextLesson } from './content/lessons/curriculum';
+import { QUESTIONS, QUESTION_LIST } from './content/bank';
+import type { Section } from './content/questions';
+import { TESTS, crSet, questionTitle, scoreTest, seededShuffle, type AnswerRecord, type TestDef, type TestResult } from './content/select';
+import { drillSize, todaysFocus, weakestTopic } from './plan';
 import {
   INTERVALS, addDays, adaptiveDrill, cardKey, climb, gradeCard, isDue, nextTestQuestion, pushHistory, reviewMistake,
   type Answer, type CardState, type Ladder, type Mistake,
@@ -12,20 +15,20 @@ export type { Mistake };
 export type VisibleMistake = Mistake & { due: boolean };
 
 export type Route =
-  | 'today' | 'learn' | 'lesson' | 'practice' | 'tests' | 'results'
+  | 'welcome' | 'today' | 'learn' | 'lesson' | 'practice' | 'tests' | 'results'
   | 'runner' | 'review' | 'flash' | 'sprint' | 'mistakes' | 'progress';
 export type Tab = 'today' | 'learn' | 'practice' | 'review' | 'progress';
-export type RunMode = 'practice' | 'mistakes' | 'cr' | 'test' | 'review' | 'extra';
+export type RunMode = 'practice' | 'mistakes' | 'cr' | 'test' | 'review' | 'extra' | 'testReview' | 'diagnostic' | 'lessonDrill';
 export type Origin = 'today' | 'review';
 export type Theme = 'light' | 'dark';
 
 export const TAB_OF: Record<Route, Tab> = {
-  today: 'today', learn: 'learn', lesson: 'learn', practice: 'practice', tests: 'practice',
+  welcome: 'today', today: 'today', learn: 'learn', lesson: 'learn', practice: 'practice', tests: 'practice',
   results: 'practice', runner: 'practice', review: 'review', flash: 'review', sprint: 'review',
   mistakes: 'review', progress: 'progress',
 };
 /** Focus screens: no tab bar on mobile, tighter top padding. */
-export const FULLSCREEN: Partial<Record<Route, true>> = { lesson: true, runner: true, flash: true, sprint: true };
+export const FULLSCREEN: Partial<Record<Route, true>> = { welcome: true, lesson: true, runner: true, flash: true, sprint: true };
 
 export interface Run {
   mode: RunMode;
@@ -35,6 +38,22 @@ export interface Run {
   section?: TestDef['section'];
   /** Planned length when the list is built as you go. */
   length?: number;
+  /** Tests: seconds used on the section clock. */
+  sectionSec: number;
+  /** Tests: bookmarked question ids. */
+  flags: string[];
+  /** Tests: 'review' is the end-of-section screen where answers can be changed. */
+  phase: 'answering' | 'review';
+  /** Tests: answer changes used (the exam allows 3). */
+  edits: number;
+  /** Tests: index of the answer being changed from the review screen. */
+  editing: number | null;
+  /** Overrides the default title for the mode. */
+  title?: string;
+  /** Tests started from the daily queue tick off the focus item when finished. */
+  fromQueue?: boolean;
+  /** testReview: the learner's original choice for each question. */
+  presets?: number[];
   answers: AnswerRecord[];
   i: number;
   sel: number | null;
@@ -45,11 +64,16 @@ export interface Run {
 }
 
 export interface LessonState {
+  /** Lesson id from the curriculum. */
+  id: string;
   step: number;
   input: string;
+  /** Picked choice for multiple-choice guided questions. */
+  sel: number | null;
   checked: boolean;
   ok: boolean;
   score: number;
+  from: Origin | 'learn';
 }
 
 export interface FlashState {
@@ -95,10 +119,18 @@ export interface ScoreForm {
 export interface AppState {
   theme: Theme;
   target: number;
+  /** Booked exam day (YYYY-MM-DD), if any. */
+  examDate: string | null;
+  /** Minutes a day the learner plans to study. */
+  dailyMin: number;
+  /** Finished first-run setup. */
+  onboarded: boolean;
   route: Route;
   tab: Tab;
   /** The day `queue` belongs to (YYYY-MM-DD). */
   day: string;
+  /** Finished lesson ids. */
+  lessonsDone: string[];
   /** Last day all five queue items were finished; keeps the streak alive. */
   lastFullDay: string | null;
   queue: boolean[];
@@ -137,7 +169,7 @@ export interface AppState {
   toolOpen: number;
 }
 
-const freshLesson = (step = 0): LessonState => ({ step, input: '', checked: false, ok: false, score: 0 });
+const freshLesson = (id = CURRICULUM[0].id, step = 0, from: LessonState['from'] = 'learn'): LessonState => ({ id, step, input: '', sel: null, checked: false, ok: false, score: 0, from });
 const freshFlash = (from: Origin = 'review', cards: number[] = [0]): FlashState => ({
   i: 0, flipped: false, mode: 'learn', input: '', checked: false, ok: false, done: false, known: 0, from, cards,
 });
@@ -151,8 +183,12 @@ const EMPTY_QUEUE = [false, false, false, false, false];
 function freshProgress() {
   return {
     target: 705,
+    examDate: null as string | null,
+    dailyMin: 30,
+    onboarded: false,
     day: dayKey(),
     lastFullDay: null,
+    lessonsDone: [] as string[],
     queue: EMPTY_QUEUE,
     streak: 0,
     inRow: 0,
@@ -178,6 +214,8 @@ function sampleProgress() {
   return {
     ...freshProgress(),
     lastFullDay: today,
+    onboarded: true,
+    examDate: addDays(today, 120),
     queue: [true, false, false, false, false],
     streak: 12,
     inRow: 2,
@@ -215,11 +253,12 @@ function initialTheme(): Theme {
 
 export function initialState(): AppState {
   const saved = loadProgress();
-  const progress = rollOver({ ...freshProgress(), ...saved });
+  // Anyone with saved progress from before setup existed counts as set up.
+  const progress = rollOver({ ...freshProgress(), ...(saved && { onboarded: true }), ...saved });
   return {
     ...progress,
     theme: initialTheme(),
-    route: 'today',
+    route: progress.onboarded ? 'today' : 'welcome',
     tab: 'today',
     les: freshLesson(),
     run: null,
@@ -253,7 +292,7 @@ function withQueueDone(s: AppState, n: number): Partial<AppState> {
 }
 
 function newRun(mode: RunMode, list: string[], over?: Partial<Run>): Run {
-  return { mode, list, answers: [], i: 0, sel: null, conf: false, sec: 0, reason: null, alt: false, ...over };
+  return { mode, list, answers: [], i: 0, sel: null, conf: false, sec: 0, reason: null, alt: false, sectionSec: 0, flags: [], phase: 'answering', edits: 0, editing: null, ...over };
 }
 
 /** Numeric seed from the day, so each day's generated sets differ but stay stable within the day. */
@@ -268,15 +307,32 @@ function withMistake(mistakes: Mistake[], qid: string, today: string, reason?: s
   return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, next, qid }, ...mistakes];
 }
 
+/** Five questions per section at a medium level, each from a different topic where possible. */
+function diagnosticSet(seed: number): string[] {
+  const out: string[] = [];
+  for (const section of ['Quant', 'Data Insights', 'Verbal'] as Section[]) {
+    const pool = QUESTION_LIST.filter(q => q.section === section && q.level >= 1 && q.level <= 2);
+    const byTopic = new Map<string, string[]>();
+    for (const q of seededShuffle(pool, seed)) byTopic.set(q.topic, [...(byTopic.get(q.topic) ?? []), q.id]);
+    // Round-robin over topics so five picks cover as many topics as possible.
+    const lists = [...byTopic.values()];
+    const picks: string[] = [];
+    for (let r = 0; picks.length < 5 && lists.some(l => l[r]); r++)
+      for (const l of lists) if (l[r] && picks.length < 5) picks.push(l[r]);
+    out.push(...picks);
+  }
+  return out;
+}
+
 /** Questions answered in the last few days, so drills prefer ones the learner hasn't just seen. */
 const recentIds = (s: AppState) => new Set(s.history.filter(a => a.day >= addDays(s.day, -3)).map(a => a.qid));
 
 /** An adaptive drill for a topic at the learner's level (or the fixed level chosen in Practice). */
-function topicRun(s: AppState, topic: string, section?: Section): Run {
+function topicRun(s: AppState, topic: string, section?: Section, n = drillSize(s.dailyMin)): Run {
   const own = QUESTION_LIST.filter(q => q.topic === topic);
   const pool = own.length ? own : QUESTION_LIST.filter(q => q.section === section);
   const level = s.lvl > 0 ? s.lvl - 1 : (s.ladders[topic]?.level ?? 0);
-  return newRun('practice', adaptiveDrill(pool, level, recentIds(s), daySeed(s.day) + s.history.length));
+  return newRun('practice', adaptiveDrill(pool, level, recentIds(s), daySeed(s.day) + s.history.length, n));
 }
 
 /** A mixed set: one question from each of several topics, near each topic's level. */
@@ -337,7 +393,8 @@ function createActions(set: Set) {
     go('runner', { run: newRun(mode, list, over) });
   const openDeck = (deck: number, from: Origin = 'review', over?: Partial<FlashState>) => set(s => deckPatch(s, deck, from, over));
   const startSprint = (from: Origin = 'review') => go('sprint', { sp: freshSprint(from) });
-  const openLesson = (step = 0) => go('lesson', { les: freshLesson(step) });
+  const openLesson = (id?: string, from: LessonState['from'] = 'learn', step = 0) =>
+    set(s => routeTo('lesson', { les: freshLesson(id ?? nextLesson(s.lessonsDone)?.id ?? CURRICULUM[0].id, step, from) }));
 
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -351,10 +408,22 @@ function createActions(set: Set) {
 
     setTheme: (theme: Theme) => set({ theme }),
     setTarget: (target: number) => set({ target }),
+    setPlan: (plan: Partial<Pick<AppState, 'target' | 'examDate' | 'dailyMin'>>) => set(plan),
+    /** Finish setup; optionally go straight into the diagnostic. */
+    finishSetup(diagnostic: boolean) {
+      set(s => (diagnostic ? { onboarded: true, ...routeTo('runner', { run: newRun('diagnostic', diagnosticSet(daySeed(s.day))) }) } : { onboarded: true, ...routeTo('today') }));
+    },
     loadSample: () => set({ ...sampleProgress(), ...routeTo('today') }),
+    /** Replace progress with a backup file's contents. Returns false if the file isn't a backup. */
+    importProgress(raw: string): boolean {
+      const data = parseProgress(raw);
+      if (!data) return false;
+      set(rollOver({ ...freshProgress(), onboarded: true, ...data, ...routeTo('today') } as AppState, dayKey()));
+      return true;
+    },
     resetProgress() {
       clearProgress();
-      set({ ...freshProgress(), ...routeTo('today') });
+      set({ ...freshProgress(), ...routeTo('welcome') });
     },
 
     startTopicDrill(topic: string, section?: Section) {
@@ -365,7 +434,16 @@ function createActions(set: Set) {
     queueGo(n: number) {
       if (n === 0) set(s => deckPatch(s, todayDeck(s), 'today'));
       else if (n === 1) startSprint('today');
-      else if (n === 2) openLesson(0);
+      else if (n === 2)
+        set(s => {
+          const next = nextLesson(s.lessonsDone);
+          // Every lesson done: the slot becomes a drill on the weakest topic.
+          if (!next) {
+            const weak = weakestTopic(s);
+            return routeTo('runner', { run: { ...topicRun(s, weak?.name ?? 'Percents', weak?.sec), mode: 'lessonDrill' as RunMode, title: `Drill: ${weak?.name ?? 'Percents'}` } });
+          }
+          return routeTo('lesson', { les: freshLesson(next.id, 0, 'today') });
+        });
       else if (n === 3)
         set(s => {
           const due = visibleMistakes(s).filter(m => m.due);
@@ -373,7 +451,18 @@ function createActions(set: Set) {
           if (!due.length) return { ...withQueueDone(s, 3), ...routeTo('mistakes') };
           return routeTo('runner', { run: newRun('mistakes', due.map(m => m.qid)) });
         });
-      else set(s => routeTo('runner', { run: newRun('cr', crSet(2, daySeed(s.day))) }));
+      else
+        set(s => {
+          const f = todaysFocus(s);
+          if (f.kind === 'test') {
+            const first = nextTestQuestion(f.section, [], [], daySeed(s.day) + s.tests.length)!;
+            return routeTo('runner', { run: newRun('test', [first], { section: f.section, length: TESTS[f.section].length, fromQueue: true }) });
+          }
+          // 'cr' mode ticks off the focus slot when the set ends.
+          if (f.kind === 'weak') return routeTo('runner', { run: { ...topicRun(s, f.topic, f.section, f.n), mode: 'cr', title: `Drill: ${f.topic}` } });
+          if (f.kind === 'mixed') return routeTo('runner', { run: { ...mixedRun(s, f.n), mode: 'cr', title: 'Mixed set' } });
+          return routeTo('runner', { run: newRun('cr', crSet(f.n, daySeed(s.day))) });
+        });
     },
     startTest(section: TestDef['section']) {
       set(s => {
@@ -386,7 +475,13 @@ function createActions(set: Set) {
       set(s => {
         const today = dayKey();
         if (s.day !== today) return rollOver(s, today);
-        if (s.route === 'runner' && s.run && !s.run.conf) return { run: { ...s.run, sec: s.run.sec + 1 } };
+        const run = s.run;
+        if (s.route === 'runner' && run?.mode === 'test') {
+          const sectionSec = run.sectionSec + 1;
+          if (sectionSec >= TESTS[run.section ?? 'Quant'].minutes * 60) return finishTest({ ...s, run: { ...run, sectionSec } });
+          return { run: { ...run, sectionSec, sec: run.phase === 'answering' ? run.sec + 1 : run.sec } };
+        }
+        if (s.route === 'runner' && run && !run.conf) return { run: { ...run, sec: run.sec + 1 } };
         if (s.route === 'sprint' && !s.sp.done) return { sp: { ...s.sp, sec: s.sp.sec + 1 } };
         return {};
       });
@@ -394,22 +489,27 @@ function createActions(set: Set) {
 
     // ── Lesson ──
     lessonInput: (input: string) => set(s => ({ les: { ...s.les, input, checked: false } })),
-    lessonBack: () => set(s => ({ les: { ...s.les, step: s.les.step - 1, input: '', checked: false, ok: false } })),
+    lessonSelect: (sel: number) => set(s => (s.les.checked && s.les.ok ? {} : { les: { ...s.les, sel, checked: false } })),
+    lessonBack: () => set(s => ({ les: { ...s.les, step: s.les.step - 1, input: '', sel: null, checked: false, ok: false } })),
     lessonNext() {
       set(s => {
         const L = s.les;
-        if (L.step >= 5) return routeTo('runner', { run: topicRun(s, 'Percents') });
-        const q = L.step === 3 || L.step === 4 ? LESSON_QUESTIONS[L.step - 3] : null;
+        const lesson = LESSON_BY_ID[L.id];
+        if (L.step >= 5) return routeTo('runner', { run: topicRun(s, lesson.topic) });
+        const q = L.step === 3 || L.step === 4 ? lesson.guided[L.step - 3] : null;
         if (q) {
-          if (!L.input) return {};
+          const answered = q.kind === 'number' ? L.input.trim() !== '' : L.sel != null;
+          if (!answered) return {};
           if (!L.checked) {
-            const ok = Number(L.input) === q.ans;
+            const ok = q.kind === 'number' ? Math.abs(Number(L.input.replace(/,/g, '')) - q.ans) < 1e-9 : L.sel === q.ans;
             return { les: { ...L, checked: true, ok, score: L.score + (ok ? 1 : 0) } };
           }
-          if (!L.ok) return { les: { ...L, checked: false, input: '' } };
+          if (!L.ok) return { les: { ...L, checked: false, input: '', sel: null } };
         }
-        const queuePatch = L.step === 4 ? withQueueDone(s, 2) : {};
-        return { ...queuePatch, les: { ...L, step: L.step + 1, input: '', checked: false, ok: false } };
+        const finished = L.step === 4;
+        const done = finished && !s.lessonsDone.includes(L.id) ? { lessonsDone: [...s.lessonsDone, L.id] } : {};
+        const queuePatch = finished && L.from === 'today' ? withQueueDone(s, 2) : {};
+        return { ...queuePatch, ...done, les: { ...L, step: L.step + 1, input: '', sel: null, checked: false, ok: false } };
       });
     },
 
@@ -427,12 +527,27 @@ function createActions(set: Set) {
           history: pushHistory(s.history, { qid, ok, sec: run.sec, day: s.day }),
           ladders: { ...s.ladders, [q.topic]: climb(s.ladders[q.topic], ok) },
         };
+        // Diagnostic: no solutions, and each answer places the topic's level directly.
+        if (run.mode === 'diagnostic') {
+          const level = ok ? Math.min(4, q.level + 1) : Math.max(0, q.level - 1);
+          const seeded = { ...learned, ladders: { ...s.ladders, [q.topic]: { level, right: 0, wrong: 0 } } };
+          const missed = ok ? {} : { mistakes: withMistake(s.mistakes, qid, s.day) };
+          if (run.i < run.list.length - 1) return { ...seeded, ...missed, run: { ...answered, i: run.i + 1, sel: null, sec: 0 } };
+          return { ...seeded, ...missed, run: null, ...routeTo('today') };
+        }
+        // Changing an answer from the end-of-section review: no new question, no learning yet.
+        if (run.mode === 'test' && run.editing != null) {
+          const answers = run.answers.map((x, i) => (i === run.editing ? { ...x, sel: run.sel!, ok: run.sel === QUESTIONS[x.qid].ans } : x));
+          const changed = run.answers[run.editing].sel !== run.sel;
+          return { run: { ...run, answers, editing: null, phase: 'review', sel: null, edits: run.edits + (changed ? 1 : 0) } };
+        }
         // Tests reveal nothing until the end; pick the next question from how this one went.
         if (run.mode === 'test') {
           const section = run.section ?? 'Quant';
           const more = answered.answers.length < (run.length ?? 0);
           const next = more ? nextTestQuestion(section, run.list, answered.answers.map(a => a.ok), daySeed(s.day) + s.tests.length) : undefined;
-          return { ...learned, ...advanceRun({ ...s, ...learned, run: next ? { ...answered, list: [...run.list, next] } : answered }) };
+          if (!next) return { ...learned, run: { ...answered, sel: null, phase: 'review' } };
+          return { ...learned, run: { ...answered, list: [...run.list, next], i: run.i + 1, sel: null, sec: 0 } };
         }
         const reviewing = run.mode === 'review' || run.mode === 'mistakes';
         let review: Partial<AppState> = {};
@@ -460,6 +575,37 @@ function createActions(set: Set) {
       });
     },
     runNext: () => set(advanceRun),
+    runPrev: () =>
+      set(s => {
+        const run = s.run;
+        if (!run || run.mode !== 'testReview' || run.i === 0) return {};
+        return { run: { ...run, i: run.i - 1, sel: run.presets![run.i - 1], conf: true, alt: false, reason: null } };
+      }),
+    toggleFlag: () =>
+      set(s => {
+        const run = s.run;
+        if (!run) return {};
+        const id = run.list[run.i];
+        return { run: { ...run, flags: run.flags.includes(id) ? run.flags.filter(f => f !== id) : [...run.flags, id] } };
+      }),
+    /** From the end-of-section review: reopen a question to change its answer. */
+    editAnswer: (index: number) =>
+      set(s => {
+        const run = s.run;
+        if (!run || run.mode !== 'test' || run.edits >= 3) return {};
+        return { run: { ...run, phase: 'answering', editing: index, i: index, sel: run.answers[index].sel } };
+      }),
+    cancelEdit: () => set(s => (s.run ? { run: { ...s.run, phase: 'review', editing: null, sel: null } } : {})),
+    finishSection: () => set(s => finishTest(s)),
+    /** Walk through a finished test question by question with solutions. */
+    reviewTest: (index = 0) =>
+      set(s => {
+        const t = s.tests[s.tests.length - 1];
+        if (!t?.answers?.length) return {};
+        const list = t.answers.map(x => x.qid);
+        const presets = t.answers.map(x => x.sel);
+        return routeTo('runner', { run: newRun('testReview', list, { presets, i: index, sel: presets[index], conf: true }) });
+      }),
 
     // ── Flashcards ──
     flip: () =>
@@ -557,11 +703,11 @@ function createActions(set: Set) {
         todayMid: () => go('today', { ...reset, queue: [true, true, true, false, false] }),
         todayDone: () => go('today', { ...reset, queue: [true, true, true, true, true], streak: 13 }),
         learn: () => go('learn'),
-        lessonRule: () => openLesson(0),
-        lessonEx: () => openLesson(1),
-        lessonTrap: () => openLesson(2),
-        lessonQ: () => openLesson(3),
-        lessonWrong: () => go('lesson', { les: { step: 3, input: '50', checked: true, ok: false, score: 0 } }),
+        lessonRule: () => openLesson('percents-2', 'learn', 0),
+        lessonEx: () => openLesson('percents-2', 'learn', 1),
+        lessonTrap: () => openLesson('percents-2', 'learn', 2),
+        lessonQ: () => openLesson('percents-2', 'learn', 3),
+        lessonWrong: () => go('lesson', { les: { ...freshLesson('percents-2', 3), input: '50', checked: true } }),
         practice: () => go('practice'),
         runQ: () => startRun('practice', ['pct-raise-cut', 'exp-same-base', 'ds-sign', 'cr-streetlights', 'tbl-sales-pct'], { sec: 38 }),
         runOk: () => startRun('practice', ['pct-raise-cut', 'exp-same-base', 'ds-sign', 'cr-streetlights', 'tbl-sales-pct'], { sel: 2, conf: true, sec: 72 }),
@@ -609,20 +755,33 @@ export function currentCard(s: AppState) {
   return cards[s.fl.cards[Math.min(s.fl.i, s.fl.cards.length - 1)]];
 }
 
+/** Score the section (unanswered questions count against it) and file every miss in Mistakes. */
+function finishTest(s: AppState): Partial<AppState> {
+  const run = s.run;
+  if (!run) return {};
+  const section = run.section ?? 'Quant';
+  const unanswered = Math.max(0, (run.length ?? run.answers.length) - run.answers.length);
+  const result = scoreTest(section, run.answers, new Date(), s.day, unanswered);
+  const missed = run.answers.filter(a => !a.ok).map(a => a.qid);
+  return {
+    ...(run.fromQueue ? withQueueDone(s, 4) : {}),
+    ...routeTo('results'), run: null, tests: [...s.tests, result], mistakes: missed.reduce((ms, qid) => withMistake(ms, qid, s.day), s.mistakes),
+  };
+}
+
 function advanceRun(s: AppState): Partial<AppState> {
   const run = s.run;
   if (!run) return {};
+  if (run.mode === 'testReview' && run.i < run.list.length - 1)
+    return { run: { ...run, i: run.i + 1, sel: run.presets![run.i + 1], conf: true, alt: false, reason: null } };
   if (run.i < run.list.length - 1)
     return { run: { ...run, i: run.i + 1, sel: null, conf: false, sec: 0, reason: null, alt: false } };
   switch (run.mode) {
     case 'mistakes': return { ...withQueueDone(s, 3), ...routeTo('today') };
     case 'cr': return { ...withQueueDone(s, 4), ...routeTo('today') };
-    case 'test': {
-      const section = run.section ?? 'Quant';
-      const result = scoreTest(section, run.answers, new Date(), s.day);
-      const missed = run.answers.filter(a => !a.ok).map(a => a.qid);
-      return { ...routeTo('results'), tests: [...s.tests, result], mistakes: missed.reduce((ms, qid) => withMistake(ms, qid, s.day), s.mistakes) };
-    }
+    case 'lessonDrill': return { ...withQueueDone(s, 2), ...routeTo('today') };
+    case 'test': return finishTest(s);
+    case 'testReview': return routeTo('results');
     case 'review': return routeTo('mistakes');
     case 'extra': return routeTo('today');
     default: return routeTo('practice');

@@ -1,21 +1,51 @@
-import type { CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { LETTERS, LEVELS, MISS_REASONS } from '../data';
-import { QUESTIONS } from '../content/questions';
+import { QUESTIONS } from '../content/bank';
 import { UP_AFTER } from '../progress';
+import { TESTS } from '../content/select';
 import { fmtTime, useApp, type RunMode } from '../store';
-import { ArrowRight, BT, CheckIcon, CloseButton, Corners, Kicker, PrimaryButton, Svg, heading, tabular } from '../components/ui';
+import { BookmarkIcon, MAX_EDITS, SectionReview } from './SectionReview';
+import { ArrowRight, BT, CheckIcon, ChevronLeft, CloseButton, Corners, Kicker, PrimaryButton, Svg, heading, tabular } from '../components/ui';
 
 const TITLES: Record<RunMode, string> = {
   practice: 'Practice drill', mistakes: 'Mistake review', cr: 'Critical Reasoning set',
-  test: 'Quant test · adaptive', review: 'Mistake review', extra: 'Mixed drill',
+  test: 'Section test · adaptive', review: 'Mistake review', extra: 'Mixed drill', testReview: 'Test review', diagnostic: 'Diagnostic', lessonDrill: 'Topic drill',
 };
 const TARGET_SECONDS = 120;
 const pretty = { textWrap: 'pretty' } as CSSProperties;
 
-export function Runner() {
+/** Keyboard: A–E or 1–5 choose, Enter confirms or moves on, B bookmarks (tests). */
+function useRunnerKeys() {
   const { s, a } = useApp();
   const run = s.run;
+  useEffect(() => {
+    if (!run) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (run.mode === 'test' && run.phase === 'review') return;
+      const k = e.key.toLowerCase();
+      const idx = 'abcde'.indexOf(k) >= 0 ? 'abcde'.indexOf(k) : '12345'.indexOf(k);
+      if (idx >= 0 && !run.conf) a.select(idx);
+      else if (k === 'b' && run.mode === 'test') a.toggleFlag();
+      else if (k === 'enter') {
+        // Let a focused button handle its own Enter.
+        if (e.target instanceof HTMLButtonElement) return;
+        if (run.conf) a.runNext();
+        else if (run.sel != null) a.confirm();
+      } else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [run, a]);
+}
+
+export function Runner() {
+  const { s, a } = useApp();
+  useRunnerKeys();
+  const run = s.run;
   if (!run) return null;
+  if (run.mode === 'test' && run.phase === 'review') return <SectionReview />;
 
   const q = QUESTIONS[run.list[run.i]];
   const test = run.mode === 'test';
@@ -24,12 +54,20 @@ export function Runner() {
   const over = run.sec > TARGET_SECONDS;
   const total = run.list.length;
   const last = run.i === run.list.length - 1;
-  const timer = fmtTime(run.sec);
+  const reviewing = run.mode === 'testReview';
+  const reviewed = reviewing ? s.tests[s.tests.length - 1]?.answers[run.i] : undefined;
+  const timer = fmtTime(reviewed ? reviewed.sec : run.sec);
+  const sectionLeft = test ? TESTS[run.section ?? 'Quant'].minutes * 60 - run.sectionSec : 0;
+  const editing = test && run.editing != null;
+  const flagged = run.flags.includes(q.id);
   // The topic ladder has already counted this answer.
   const lad = s.ladders[q.topic] ?? { level: 0, right: 0, wrong: 0 };
   const leveledUp = correct && lad.right === 0;
   const ladder = { level: lad.level, right: lad.right, leveledUp, before: leveledUp ? (UP_AFTER - 1) / UP_AFTER : Math.max(0, lad.right - 1) / UP_AFTER, after: leveledUp ? 1 : lad.right / UP_AFTER };
-  const close = () => a.go(test ? 'tests' : run.mode === 'practice' ? 'practice' : run.mode === 'review' ? 'mistakes' : 'today');
+  const close = () => {
+    if (test && !confirm('Leave the test? It will not be scored.')) return;
+    a.go(test ? 'tests' : reviewing ? 'results' : run.mode === 'diagnostic' ? 'today' : run.mode === 'practice' ? 'practice' : run.mode === 'review' ? 'mistakes' : 'today');
+  };
 
   return (
     <div data-qid={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -37,18 +75,30 @@ export function Runner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <CloseButton onClick={close} />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <span style={{ ...heading, fontSize: 17, lineHeight: 1.1 }}>{test ? `${run.section} test · adaptive` : TITLES[run.mode]}</span>
+            <span style={{ ...heading, fontSize: 17, lineHeight: 1.1 }}>{test ? `${run.section} test · adaptive` : run.title ?? TITLES[run.mode]}</span>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Question {run.i + 1} of {total}
+              {editing ? `Changing question ${run.i + 1} · ${MAX_EDITS - run.edits} changes left` : `Question ${run.i + 1} of ${test ? run.length : total}`}
             </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '4px 10px', border: `1px solid ${over ? 'var(--bad)' : 'var(--color-divider)'}`, background: over ? 'var(--bad-bg)' : 'var(--color-bg)', transition: 'all .3s' }} aria-label={`Time on question ${timer}`}>
-            <span style={{ ...heading, fontSize: 22, lineHeight: 1, ...tabular, color: over ? 'var(--bad)' : 'var(--color-text)' }}>{timer}</span>
-            <span style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--bad)' : 'var(--muted)' }}>target 2:00</span>
-          </div>
+          {test && (
+            <button onClick={a.toggleFlag} aria-pressed={flagged} aria-label={flagged ? 'Remove bookmark' : 'Bookmark for review'} className="btn btn-ghost btn-icon" style={{ color: flagged ? 'var(--warn)' : 'var(--muted)' }}>
+              <BookmarkIcon filled={flagged} />
+            </button>
+          )}
+          {test ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '4px 10px', border: `1px solid ${sectionLeft < 300 ? 'var(--bad)' : 'var(--color-divider)'}`, background: sectionLeft < 300 ? 'var(--bad-bg)' : 'var(--color-bg)' }} aria-label={`${fmtTime(sectionLeft)} left in the section`}>
+              <span style={{ ...heading, fontSize: 22, lineHeight: 1, ...tabular, color: sectionLeft < 300 ? 'var(--bad)' : 'var(--color-text)' }}>{fmtTime(sectionLeft)}</span>
+              <span style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--bad)' : 'var(--muted)' }}>this one {timer}</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '4px 10px', border: `1px solid ${over ? 'var(--bad)' : 'var(--color-divider)'}`, background: over ? 'var(--bad-bg)' : 'var(--color-bg)', transition: 'all .3s' }} aria-label={`Time on question ${timer}`}>
+              <span style={{ ...heading, fontSize: 22, lineHeight: 1, ...tabular, color: over ? 'var(--bad)' : 'var(--color-text)' }}>{timer}</span>
+              <span style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: over ? 'var(--bad)' : 'var(--muted)' }}>target 2:00</span>
+            </div>
+          )}
         </div>
         <div style={{ height: 3, background: 'var(--color-divider)' }}>
-          <div style={{ height: '100%', width: ((run.i + (conf ? 1 : 0)) / total) * 100 + '%', background: 'var(--color-accent)', transition: 'width .4s' }} />
+          <div style={{ height: '100%', width: test ? (run.answers.length / (run.length ?? 1)) * 100 + '%' : ((run.i + (conf ? 1 : 0)) / total) * 100 + '%', background: 'var(--color-accent)', transition: 'width .4s' }} />
         </div>
       </div>
 
@@ -151,9 +201,16 @@ export function Runner() {
           </div>
 
           {!conf && (
-            <PrimaryButton onClick={a.confirm} style={{ height: 50, fontSize: 17, opacity: run.sel == null ? 0.45 : 1, marginTop: 4 }}>
-              {test ? (last ? 'Confirm & finish' : 'Confirm & next') : 'Confirm'}
-            </PrimaryButton>
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              {editing && (
+                <button className="btn btn-secondary" onClick={a.cancelEdit} style={{ flex: 1, height: 50, fontSize: 16 }}>
+                  Keep answer
+                </button>
+              )}
+              <PrimaryButton onClick={a.confirm} style={{ flex: 2, height: 50, fontSize: 17, opacity: run.sel == null ? 0.45 : 1 }}>
+                {editing ? 'Save answer' : run.mode === 'diagnostic' ? (last ? 'Finish diagnostic' : 'Next') : test ? (run.answers.length + 1 >= (run.length ?? 0) ? 'Confirm & review' : 'Confirm & next') : 'Confirm'}
+              </PrimaryButton>
+            </div>
           )}
         </div>
 
@@ -169,9 +226,9 @@ export function Runner() {
                     <span style={{ ...heading, fontSize: 22, lineHeight: 1.1, color: 'var(--ok)' }}>Correct · {timer}</span>
                     <span style={{ fontSize: 13 }}>{over ? 'Right, but over target. Try the fastest method below.' : 'Under the 2:00 target.'}</span>
                   </div>
-                  <span style={{ ...heading, fontSize: 15, color: 'var(--ok)' }}>{s.inRow >= 2 ? `${s.inRow} in a row` : ''}</span>
+                  <span style={{ ...heading, fontSize: 15, color: 'var(--ok)' }}>{!reviewing && s.inRow >= 2 ? `${s.inRow} in a row` : ''}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 2px' }}>
+                {!reviewing && <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 2px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
                     <span>{ladder.leveledUp ? `${q.topic} · up to ${LEVELS[ladder.level]}` : ladder.level >= 4 ? `${q.topic} · top level` : `${q.topic} · toward ${LEVELS[ladder.level + 1]}`}</span>
                     <span>{ladder.leveledUp ? 'Level up' : `${ladder.right} of ${UP_AFTER} in a row`}</span>
@@ -180,14 +237,14 @@ export function Runner() {
                     <div style={{ position: 'absolute', inset: 0, width: ladder.before * 100 + '%', background: 'var(--color-accent)' }} />
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: ladder.before * 100 + '%', width: (ladder.after - ladder.before) * 100 + '%', background: 'var(--ok)', transformOrigin: 'left', animation: 'grow .6s .35s both' }} />
                   </div>
-                </div>
+                </div>}
               </>
             ) : (
               <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 14, background: 'var(--bad-bg)', border: '1px solid var(--bad)' }}>
                 <span style={{ flex: 'none', width: 40, height: 40, display: 'grid', placeItems: 'center', border: '1.5px solid var(--bad)', color: 'var(--bad)', ...heading, fontSize: 20 }}>{LETTERS[q.ans]}</span>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ ...heading, fontSize: 22, lineHeight: 1.1, color: 'var(--bad)' }}>Not this time · {timer}</span>
-                  <span style={{ fontSize: 13 }}>The answer is {LETTERS[q.ans]}. It’s saved to Mistakes and comes back tomorrow.</span>
+                  <span style={{ fontSize: 13 }}>{reviewing ? `You chose ${LETTERS[run.sel ?? 0]}; the answer is ${LETTERS[q.ans]}. It’s in Mistakes for tomorrow.` : `The answer is ${LETTERS[q.ans]}. It’s saved to Mistakes and comes back tomorrow.`}</span>
                 </div>
               </div>
             )}
@@ -238,11 +295,16 @@ export function Runner() {
             )}
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {reviewing && run.i > 0 && (
+                <button className="btn btn-secondary" onClick={a.runPrev} style={{ height: 50, width: 56 }} aria-label="Previous question">
+                  <ChevronLeft size={20} />
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={a.toggleAlt} style={{ flex: 1, minWidth: 150, height: 50, fontSize: 15 }}>
                 {run.alt ? 'Hide other way' : 'Explain it another way'}
               </button>
               <PrimaryButton onClick={a.runNext} style={{ flex: 1.3, minWidth: 150, height: 50, fontSize: 17, gap: 6 }}>
-                {last ? 'Finish' : 'Next question'}
+                {last ? (reviewing ? 'Back to results' : 'Finish') : 'Next question'}
                 <ArrowRight />
               </PrimaryButton>
             </div>

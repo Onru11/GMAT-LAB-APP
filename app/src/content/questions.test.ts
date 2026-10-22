@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { QUESTIONS, QUESTION_LIST } from './questions';
+import { CORE_QUESTIONS as QUESTION_LIST } from './questions';
+
+const QUESTIONS = Object.fromEntries(QUESTION_LIST.map(q => [q.id, q]));
 import { TOPICS } from '../data';
 
 // Never trust a declared answer: every Quant and DI key is re-derived here

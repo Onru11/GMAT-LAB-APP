@@ -1,5 +1,6 @@
-// The question bank. Every Quant and Data Insights answer is re-derived
-// independently in questions.test.ts, so a typo in `ans` fails the build.
+// Question types and the original 64 questions. Every Quant and Data Insights
+// answer is re-derived independently in questions.test.ts, so a typo in `ans`
+// fails the build.
 
 export type Section = 'Quant' | 'Data Insights' | 'Verbal';
 
@@ -749,7 +750,5 @@ const CR_QUESTIONS: Question[] = [
   }),
 ];
 
-export const QUESTION_LIST: Question[] = [...QUANT, ...DS_QUESTIONS, ...TABLE_QUESTIONS, ...CR_QUESTIONS];
-export const QUESTIONS: Record<string, Question> = Object.fromEntries(QUESTION_LIST.map(x => [x.id, x]));
-
-export const questionsFor = (pred: (q: Question) => boolean) => QUESTION_LIST.filter(pred).map(x => x.id);
+/** The original questions. The full bank, with every file in bank/, is in bank/index.ts. */
+export const CORE_QUESTIONS: Question[] = [...QUANT, ...DS_QUESTIONS, ...TABLE_QUESTIONS, ...CR_QUESTIONS];

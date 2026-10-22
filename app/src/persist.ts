@@ -8,7 +8,7 @@ const KEY = 'gmatlab.progress';
 const VERSION = 2;
 
 export const PERSISTED = [
-  'target', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'mistakes', 'scores', 'tests',
+  'target', 'examDate', 'dailyMin', 'onboarded', 'lessonsDone', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'mistakes', 'scores', 'tests',
   'history', 'ladders', 'cards', 'cleared', 'sprintBest', 'sprintLast', 'sprintFacts',
   'openPhase', 'lvl', 'progSec',
 ] as const satisfies readonly (keyof AppState)[];
@@ -30,7 +30,15 @@ export function previousDay(key: string): string {
 export function loadProgress(): Partial<Persisted> | null {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
+    return raw ? parseProgress(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Read a saved or exported progress blob; null if it isn't one. */
+export function parseProgress(raw: string): Partial<Persisted> | null {
+  try {
     const parsed = JSON.parse(raw) as { v?: number; data?: Record<string, unknown> };
     if (!parsed.data) return null;
     if (parsed.v === VERSION) return parsed.data as Partial<Persisted>;
@@ -47,10 +55,14 @@ function migrateV1(data: Record<string, unknown>): Partial<Persisted> {
   return rest as Partial<Persisted>;
 }
 
+/** The saved form of the learner's progress, also used for backup files. */
+export function serializeProgress(s: AppState): string {
+  return JSON.stringify({ v: VERSION, app: 'gmat-lab', data: Object.fromEntries(PERSISTED.map(k => [k, s[k]])) });
+}
+
 export function saveProgress(s: AppState) {
-  const data = Object.fromEntries(PERSISTED.map(k => [k, s[k]]));
   try {
-    localStorage.setItem(KEY, JSON.stringify({ v: VERSION, data }));
+    localStorage.setItem(KEY, serializeProgress(s));
   } catch {
     /* storage full or unavailable: progress lives for this session only */
   }

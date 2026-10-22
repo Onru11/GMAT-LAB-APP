@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUESTION_LIST } from './content/questions';
+import { QUESTION_LIST } from './content/bank';
 import {
   addDays, adaptiveDrill, climb, daysBetween, gradeCard, knownInterval, nextTestQuestion, reviewMistake,
   sectionEstimate, testLevel, topicStat, totalFromSections, type Answer, type Mistake,

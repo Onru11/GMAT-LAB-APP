@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUESTIONS } from './questions';
-import { QUESTION_LIST } from './questions';
+import { QUESTIONS, QUESTION_LIST } from './bank';
 import { crSet, scoreTest, sectionScore, seededShuffle } from './select';
 
 describe('question selection', () => {
@@ -23,6 +22,12 @@ describe('scoring', () => {
   it('spans the 60–90 section scale', () => {
     expect(sectionScore(answers(() => true))).toBe(90);
     expect(sectionScore(answers(() => false))).toBe(60);
+  });
+
+  it('penalises an unfinished section', () => {
+    const half = answers(() => true).slice(0, 10);
+    expect(sectionScore(half, 11)).toBeLessThan(sectionScore(half));
+    expect(sectionScore([], 21)).toBe(60);
   });
 
   it('rewards hard questions more than easy ones', () => {
