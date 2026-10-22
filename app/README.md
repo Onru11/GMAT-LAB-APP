@@ -12,7 +12,7 @@ npm run build      # typecheck + production build into dist/
 ```
 
 Pushing to `main` runs the tests, builds, and publishes to the `gh-pages` branch, which GitHub Pages
-serves at https://onru11.github.io/gmat-lab-app/. Add `?dev` to the URL for the review panel:
+serves at https://onru11.github.io/GMAT-LAB-APP/. Add `?dev` to the URL for the review panel:
 jump to named states, load sample data, reset progress, switch theme.
 
 ## Sync across devices (optional)
@@ -25,7 +25,7 @@ email + password (one confirmation email per account) or with an emailed 6-digit
 2. **SQL Editor → New query**: paste `../supabase/schema.sql` and run it. It creates the
    `progress` table with row-level security (each user can only see their own row).
 3. **Authentication → URL Configuration**: set *Site URL* to the app URL
-   (e.g. `https://<user>.github.io/gmat-lab-app/`) and add it under *Redirect URLs*.
+   (e.g. `https://<user>.github.io/<repo>/`) and add it under *Redirect URLs*.
 4. **Authentication → Email Templates → Magic Link**: add `Your code: {{ .Token }}` to the body,
    so the email carries a 6-digit code as well as the link (the code is what works inside the
    installed app).
