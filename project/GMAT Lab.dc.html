@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/industry-650e068e-ab1f-4185-88e9-644224c4d2da/styles.css">
+<script src="_ds/industry-650e068e-ab1f-4185-88e9-644224c4d2da/_ds_bundle.js"></script>
+<style>
+:root{--ok:#2e7d55;--ok-bg:#e2f1e7;--bad:#b9423a;--bad-bg:#f8e3e1;--warn:#8f5d10;--warn-bg:#fbefd6;--hl:#FFE9A3;--hl-ink:#1d1f20;--grid:color-mix(in srgb,#5980a6 10%,transparent);--muted:color-mix(in srgb,var(--color-text) 62%,transparent)}
+[data-theme=dark]{color-scheme:dark;--color-bg:#15181b;--color-surface:#1d2125;--color-text:#e4e6e8;--color-accent:#86a9cc;--color-divider:color-mix(in srgb,#e4e6e8 17%,transparent);--color-accent-100:#1e2a36;--color-accent-200:#253747;--color-accent-600:#9dbcdb;--color-accent-700:#b5d0ea;--color-accent-800:#cfe2f5;--ok:#62c28e;--ok-bg:#15301f;--bad:#ef8178;--bad-bg:#3b1c1a;--warn:#e8b25a;--warn-bg:#35290f;--hl:#ecd78f;--grid:color-mix(in srgb,#86a9cc 7%,transparent);--muted:color-mix(in srgb,#e4e6e8 64%,transparent)}
+body{margin:0;background:#e6e6e8}
+a{color:var(--color-accent-700)}a:hover{color:var(--color-accent-800)}
+button{font:inherit}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+@keyframes pop{0%{transform:scale(.97);opacity:0}60%{transform:scale(1.015);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes draw{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes rise{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</helmet>
+<div style="display:flex;gap:40px;align-items:flex-start;padding:40px;min-height:100vh;font-family:var(--font-body);color:#1d1f20;background:#e6e6e8">
+
+<aside style="flex:none;width:250px;display:flex;flex-direction:column;gap:18px;position:sticky;top:24px">
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1">GMAT Lab</div>
+    <div style="font-size:13px;color:#5d5d60">Interactive prototype · tap anything</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-family:var(--font-heading);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#5d5d60">View</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-secondary" onClick="{{ toggleTheme }}" style="flex:1">{{ themeLabel }}</button>
+      <button class="btn btn-secondary" onClick="{{ toggleDevice }}" style="flex:1">{{ deviceLabel }}</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-family:var(--font-heading);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#5d5d60">Jump to a state</div>
+    <sc-for list="{{ jumpGroups }}" as="g" hint-placeholder-count="5">
+      <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:6px">
+        <div style="font-size:11px;color:#7a7a7d;padding:2px 0">{{ g.name }}</div>
+        <sc-for list="{{ g.items }}" as="j" hint-placeholder-count="2">
+          <button onClick="{{ j.onClick }}" style="text-align:left;padding:5px 8px;border:0;background:transparent;cursor:pointer;font-size:13px;color:#1d1f20;border-radius:0" style-hover="background:rgba(89,128,166,.12)">{{ j.label }}</button>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+  <div style="font-size:12px;line-height:1.5;color:#5d5d60;border-top:1px solid rgba(29,31,32,.14);padding-top:12px;text-wrap:pretty">Built on the Industry system (Barlow, steel accent, blueprint frames) over your grid-paper noteboard. Yellow highlighter is reserved for “Do this next”; green, red and amber are kept only for right, wrong and traps.</div>
+</aside>
+
+<div style="flex:none;width:{{ frame.w }};height:{{ frame.h }};padding:{{ frame.pad }};border-radius:{{ frame.radius }};background:{{ frame.bg }};box-shadow:0 30px 60px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.2)">
+<div data-theme="{{ theme }}" style="width:100%;height:100%;border-radius:{{ frame.innerRadius }};overflow:hidden;position:relative;display:flex;background-color:var(--color-bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.5">
+
+<sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ false }}">
+  <nav style="flex:none;width:232px;border-right:1px solid var(--color-divider);background:var(--color-bg);display:flex;flex-direction:column;padding:22px 14px;gap:4px">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px">
+      <span style="width:22px;height:22px;border:1.5px solid var(--color-accent);display:grid;place-items:center;font-family:var(--font-heading);font-size:13px;font-weight:600;color:var(--color-accent)">G</span>
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:21px">GMAT Lab</span>
+    </div>
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;background:{{ t.deskBg }};color:{{ t.color }};cursor:pointer;text-align:left;font-size:15px;font-weight:500" style-hover="background:var(--color-accent-100)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d1 }}"></path><path d="{{ t.d2 }}"></path><path d="{{ t.d3 }}"></path></svg>
+        {{ t.label }}
+      </button>
+    </sc-for>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;padding:14px 12px;border:1px solid var(--color-divider)">
+      <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-heading);font-size:20px;font-weight:600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>{{ streak }}-day streak</div>
+      <div style="font-size:13px;color:var(--muted)">Exam target · April 2027</div>
+    </div>
+  </nav>
+</sc-if>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+  <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:none;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-family:var(--font-heading);font-weight:600;font-size:16px;background:var(--color-bg)">
+      <span>9:41</span>
+      <span style="display:flex;gap:6px;align-items:center"><span style="width:17px;height:10px;border:1.5px solid currentColor;border-radius:2px"></span></span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;height:38px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--color-divider);background:var(--color-bg);font-size:12px;color:var(--muted)">
+      <span style="padding:3px 12px;border:1px solid var(--color-divider)">gmatlab.app/{{ route }}</span>
+    </div>
+  </sc-if>
+
+  <div ref="{{ scrollRef }}" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden">
+  <div style="max-width:{{ contentMax }};margin:0 auto;padding:{{ contentPad }}">
+
+  <!-- ═══ TODAY ═══ -->
+  <sc-if value="{{ r.today }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Thursday · Oct 22</div>
+          <h1 style="margin:2px 0 0;font-size:38px;line-height:1">Today</h1>
+        </div>
+        <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--color-divider);background:var(--color-bg);font-family:var(--font-heading);font-weight:600;font-size:18px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>{{ streak }}</div>
+        </sc-if>
+      </header>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:20px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <section class="blueprint" style="background:var(--color-bg);padding:18px;display:flex;flex-direction:column;gap:16px">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div>
+                <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Estimated score</div>
+                <div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:var(--font-heading);font-weight:600;font-size:64px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ est.total }}</span><span style="font-size:14px;color:var(--muted)">of 805</span></div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">To target</div>
+                <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1.1;color:var(--color-accent-700)">+{{ est.toGo }}</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;padding-top:14px">
+              <div style="position:relative;height:10px;border:1px solid var(--color-divider);background:var(--color-surface)">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ est.pct }};background:var(--color-accent);transform-origin:left;animation:grow .8s cubic-bezier(.2,.7,.2,1)"></div>
+                <div style="position:absolute;left:{{ est.basePct }};top:-3px;bottom:-3px;width:1px;background:var(--muted)"></div>
+                <div style="position:absolute;left:{{ est.goalPct }};top:-16px;bottom:-5px;width:2px;background:var(--color-text)"></div>
+                <div style="position:absolute;left:{{ est.goalPct }};top:-19px;transform:translateX(6px);font-family:var(--font-heading);font-weight:600;font-size:13px;line-height:1">{{ target }}</div>
+              </div>
+              <div style="position:relative;height:16px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums">
+                <span style="position:absolute;left:0">205</span>
+                <span style="position:absolute;left:{{ est.basePct }};transform:translateX(-50%)">Start 375</span>
+                <span style="position:absolute;right:0">805</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider)">
+              <sc-for list="{{ est.sections }}" as="sec" hint-placeholder-count="3">
+                <div style="padding:12px 0 0;display:flex;flex-direction:column;gap:4px;border-left:{{ sec.border }};padding-left:{{ sec.padL }}">
+                  <div style="font-size:12px;color:var(--muted)">{{ sec.name }}</div>
+                  <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1;font-variant-numeric:tabular-nums">{{ sec.val }}</span><span style="font-size:12px;color:var(--ok);font-weight:500">{{ sec.delta }}</span></div>
+                  <div style="height:3px;background:var(--color-divider);margin-right:12px"><div style="height:100%;width:{{ sec.pct }};background:var(--color-accent)"></div></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">From your last official exam (465) and 40 recent drill answers. Sections scale 60–90.</div>
+          </section>
+          <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <button onClick="{{ goMistakes }}" style="text-align:left;padding:14px;border:1px solid var(--color-divider);background:var(--color-bg);color:var(--color-text);cursor:pointer;display:flex;flex-direction:column;gap:2px" style-hover="border-color:var(--color-accent)"><span style="font-size:12px;color:var(--muted)">Mistakes due</span><span style="font-family:var(--font-heading);font-weight:600;font-size:26px">{{ mv.dueCount }}</span></button>
+              <button onClick="{{ goProgress }}" style="text-align:left;padding:14px;border:1px solid var(--color-divider);background:var(--color-bg);color:var(--color-text);cursor:pointer;display:flex;flex-direction:column;gap:2px" style-hover="border-color:var(--color-accent)"><span style="font-size:12px;color:var(--muted)">Weakest topic</span><span style="font-family:var(--font-heading);font-weight:600;font-size:22px">Rates &amp; work · 49%</span></button>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <sc-if value="{{ notAllDone }}" hint-placeholder-val="{{ true }}">
+            <section class="blueprint" style="background:var(--hl);color:var(--hl-ink);padding:18px;display:flex;flex-direction:column;gap:12px;border-color:color-mix(in srgb,var(--hl-ink) 25%,transparent)">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase"><span>Do this next</span><span>About {{ next.min }} min</span></div>
+              <div>
+                <div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1.05">{{ next.title }}</div>
+                <div style="font-size:14px;margin-top:4px;opacity:.82">{{ next.meta }}</div>
+              </div>
+              <div style="font-size:14px;line-height:1.45;text-wrap:pretty">{{ next.why }}</div>
+              <button class="btn btn-primary" onClick="{{ next.onStart }}" style="height:48px;font-size:17px;border-color:#1d1f20;background:#1d1f20;color:#FFE9A3;gap:8px">Start {{ next.verb }}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+            </section>
+          </sc-if>
+          <sc-if value="{{ allDone }}" hint-placeholder-val="{{ false }}">
+            <section class="blueprint" style="background:var(--color-bg);padding:22px 18px;display:flex;flex-direction:column;gap:14px;align-items:flex-start;animation:pop .5s ease-out">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <span style="width:52px;height:52px;display:grid;place-items:center;background:var(--ok);color:var(--color-bg)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:30;animation:draw .5s .2s both"><path d="M20 6 9 17l-5-5"></path></svg></span>
+              <div>
+                <div style="font-family:var(--font-heading);font-weight:600;font-size:32px;line-height:1">Session complete</div>
+                <div style="font-size:14px;color:var(--muted);margin-top:4px">28 min · 5 of 5 done · streak now {{ streak }} days</div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);width:100%;border-top:1px solid var(--color-divider);padding-top:12px;gap:8px">
+                <div><div style="font-size:12px;color:var(--muted)">Accuracy</div><div style="font-family:var(--font-heading);font-weight:600;font-size:24px">78%</div></div>
+                <div><div style="font-size:12px;color:var(--muted)">Cards</div><div style="font-family:var(--font-heading);font-weight:600;font-size:24px">12</div></div>
+                <div><div style="font-size:12px;color:var(--muted)">Cleared</div><div style="font-family:var(--font-heading);font-weight:600;font-size:24px">1</div></div>
+              </div>
+              <div style="font-size:14px;line-height:1.45">Tomorrow: lesson “Watch the question word”, 14 cards and 2 mistakes come back.</div>
+              <button class="btn btn-secondary" onClick="{{ startExtra }}" style="height:44px;font-size:15px;width:100%">Optional: 5-question mixed drill</button>
+            </section>
+          </sc-if>
+
+          <section style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <h2 style="margin:0;font-size:22px">Today’s queue</h2>
+              <span style="font-size:13px;color:var(--muted)">{{ doneCount }} of 5 done · ~28 min</span>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid var(--color-divider);background:var(--color-bg)">
+              <sc-for list="{{ queueList }}" as="q" hint-placeholder-count="5">
+                <button onClick="{{ q.onClick }}" style="display:flex;align-items:center;gap:14px;padding:14px;border:0;border-top:{{ q.topBorder }};background:{{ q.bg }};color:var(--color-text);text-align:left;cursor:pointer" style-hover="background:var(--color-accent-100)">
+                  <span style="flex:none;width:30px;height:30px;display:grid;place-items:center;border:1px solid {{ q.numBorder }};background:{{ q.numBg }};color:{{ q.numInk }};font-family:var(--font-heading);font-weight:600;font-size:15px">
+                    <sc-if value="{{ q.done }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+                    <sc-if value="{{ q.notDone }}" hint-placeholder-val="{{ true }}">{{ q.n }}</sc-if>
+                  </span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column">
+                    <span style="font-weight:500;font-size:15px;color:{{ q.titleColor }};text-decoration:{{ q.deco }}">{{ q.title }}</span>
+                    <span style="font-size:13px;color:var(--muted)">{{ q.meta }}</span>
+                  </span>
+                  <sc-if value="{{ q.current }}" hint-placeholder-val="{{ false }}"><span class="tag" style="background:var(--hl);color:var(--hl-ink);font-weight:600">Next</span></sc-if>
+                  <span style="flex:none;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums">{{ q.min }}m</span>
+                </button>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ═══ LEARN ═══ -->
+  <sc-if value="{{ r.learn }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <header>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Study path · 6 phases</div>
+        <h1 style="margin:2px 0 4px;font-size:38px;line-height:1">Learn</h1>
+        <div style="font-size:14px;color:var(--muted);text-wrap:pretty">Every topic: short lesson, guided practice, then an adaptive drill. Only what moves the score.</div>
+      </header>
+      <div style="display:flex;gap:4px;font-size:11px;color:var(--muted)">
+        <sc-for list="{{ levelLegend }}" as="lg" hint-placeholder-count="5">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px"><div style="height:4px;background:var(--color-accent);opacity:{{ lg.op }}"></div><span>{{ lg.name }}</span></div>
+        </sc-for>
+      </div>
+      <sc-for list="{{ phases }}" as="ph" hint-placeholder-count="6">
+        <section style="border:1px solid {{ ph.border }};background:var(--color-bg)">
+          <button onClick="{{ ph.onToggle }}" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px;border:0;background:transparent;color:var(--color-text);text-align:left;cursor:pointer">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:26px;line-height:1;color:{{ ph.numColor }};width:34px">{{ ph.num }}</span>
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column">
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:20px;line-height:1.15">{{ ph.name }}</span>
+              <span style="font-size:13px;color:var(--muted)">{{ ph.sub }}</span>
+            </span>
+            <span class="tag" style="background:{{ ph.tagBg }};color:{{ ph.tagInk }}">{{ ph.tag }}</span>
+          </button>
+          <sc-if value="{{ ph.open }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:10px;padding:0 14px 14px">
+              <sc-for list="{{ ph.topics }}" as="tp" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid {{ tp.border }};background:{{ tp.bg }}">
+                  <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span style="font-weight:600;font-size:15px">{{ tp.name }}</span><span style="font-size:12px;color:var(--muted);white-space:nowrap">{{ tp.levelName }}</span></div>
+                  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px"><sc-for list="{{ tp.segs }}" as="sg" hint-placeholder-count="5"><div style="height:5px;background:{{ sg.bg }}"></div></sc-for></div>
+                  <div style="font-size:13px;color:var(--muted)">{{ tp.status }}</div>
+                  <sc-if value="{{ tp.current }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--color-divider);padding-top:8px">
+                      <sc-for list="{{ lessonList }}" as="ll" hint-placeholder-count="5">
+                        <div style="display:flex;gap:8px;align-items:center;font-size:13px;color:{{ ll.color }}"><span style="width:16px;font-family:var(--font-heading);font-weight:600">{{ ll.mark }}</span>{{ ll.name }}</div>
+                      </sc-for>
+                      <button class="btn btn-primary blueprint" onClick="{{ openLesson }}" style="margin-top:10px;height:42px;font-size:15px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Continue lesson</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </section>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ═══ LESSON ═══ -->
+  <sc-if value="{{ r.lesson }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:18px;min-height:100%">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onClick="{{ les.onClose }}" class="btn btn-ghost btn-icon" style="color:var(--color-text)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        <div style="flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:4px">
+          <sc-for list="{{ les.bars }}" as="b" hint-placeholder-count="5"><div style="height:5px;background:{{ b.bg }};transition:background .3s"></div></sc-for>
+        </div>
+        <span style="font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums">{{ les.count }}</span>
+      </div>
+      <div>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Percents · Lesson 3</div>
+        <h1 style="margin:2px 0 0;font-size:34px;line-height:1.02">Two changes in a row</h1>
+      </div>
+
+      <sc-if value="{{ les.isRule }}" hint-placeholder-val="{{ false }}">
+        <section class="blueprint" style="background:var(--color-bg);padding:18px;display:flex;flex-direction:column;gap:10px;animation:rise .3s ease-out">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">The rule</div>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:26px;line-height:1.1">Percent changes multiply. They never add.</div>
+          <p style="margin:0;font-size:16px;text-wrap:pretty">Turn each change into a multiplier, then multiply the multipliers.</p>
+          <div style="padding:14px;border:1px dashed var(--color-divider);font-family:var(--font-heading);font-size:22px;text-align:center;font-variant-numeric:tabular-nums">New = Old × (1 + a) × (1 + b)</div>
+          <div style="font-size:14px;color:var(--muted)">A rise of 20% is ×1.2. A fall of 15% is ×0.85.</div>
+        </section>
+      </sc-if>
+      <sc-if value="{{ les.isExample }}" hint-placeholder-val="{{ false }}">
+        <section style="display:flex;flex-direction:column;gap:12px;animation:rise .3s ease-out">
+          <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Worked example</div>
+          <div style="font-size:17px">A price rises 10%, then rises another 10%. What is the total change?</div>
+          <div class="blueprint" style="background:var(--color-accent-100);border-color:var(--color-accent);padding:16px;display:flex;flex-direction:column;gap:10px">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <sc-for list="{{ exampleLines }}" as="el" hint-placeholder-count="3">
+              <div style="display:flex;gap:12px;align-items:baseline"><span style="flex:none;width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--color-accent);font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-accent-700)">{{ el.n }}</span><span style="font-family:var(--font-heading);font-size:21px;font-variant-numeric:tabular-nums">{{ el.t }}</span></div>
+            </sc-for>
+          </div>
+          <div style="font-size:15px;color:var(--muted)">The second 10% is taken on 110, not 100. That extra 1% is where the points hide.</div>
+        </section>
+      </sc-if>
+      <sc-if value="{{ les.isTrap }}" hint-placeholder-val="{{ false }}">
+        <section style="display:flex;flex-direction:column;gap:12px;animation:rise .3s ease-out">
+          <div style="background:var(--warn-bg);border:1px solid var(--warn);padding:16px;display:flex;gap:12px">
+            <svg style="flex:none;margin-top:2px" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--warn)">Common trap</div>
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:23px;line-height:1.1">+20% then −20% is not 0%</div>
+              <div style="font-size:15px;text-wrap:pretty">The second change acts on a new, bigger base. 1.2 × 0.8 = 0.96, so you end 4% down. Answer choice “no change” is there to catch you.</div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+      <sc-if value="{{ les.isQ }}" hint-placeholder-val="{{ false }}">
+        <section style="display:flex;flex-direction:column;gap:14px;animation:rise .3s ease-out">
+          <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">{{ les.label }}</div>
+          <div style="font-size:18px;line-height:1.45;text-wrap:pretty">{{ les.head }}</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="number" inputmode="decimal" value="{{ les.input }}" onChange="{{ les.onInput }}" onKeyDown="{{ les.onKey }}" placeholder="?" style="width:140px;height:58px;padding:0 14px;border:1.5px solid {{ les.inputBorder }};background:var(--color-bg);color:var(--color-text);font-family:var(--font-heading);font-weight:600;font-size:30px;font-variant-numeric:tabular-nums;outline:none;animation:{{ les.anim }}">
+            <span style="font-family:var(--font-heading);font-size:26px;color:var(--muted)">%</span>
+          </div>
+          <sc-if value="{{ les.checked }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:{{ les.fbBg }};border:1px solid {{ les.fbBorder }};animation:pop .35s ease-out">
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:17px;color:{{ les.fbBorder }}">{{ les.fbTitle }}</span>
+              <span style="font-size:15px">{{ les.fbMsg }}</span>
+            </div>
+          </sc-if>
+        </section>
+      </sc-if>
+      <sc-if value="{{ les.isDone }}" hint-placeholder-val="{{ false }}">
+        <section class="blueprint" style="background:var(--color-bg);padding:20px;display:flex;flex-direction:column;gap:12px;animation:pop .45s ease-out">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span style="width:48px;height:48px;display:grid;place-items:center;background:var(--ok);color:var(--color-bg)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:30;animation:draw .5s .15s both"><path d="M20 6 9 17l-5-5"></path></svg></span>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1">Lesson complete</div>
+          <div style="font-size:15px;text-wrap:pretty">{{ les.score }} guided questions right. Next: an adaptive drill on successive changes, then “Watch the question word”.</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px"><div style="height:5px;background:var(--color-accent)"></div><div style="height:5px;background:var(--color-accent);transform-origin:left;animation:grow .6s .3s both"></div><div style="height:5px;background:var(--color-divider)"></div><div style="height:5px;background:var(--color-divider)"></div><div style="height:5px;background:var(--color-divider)"></div></div>
+          <div style="font-size:12px;color:var(--muted)">Percents · Building · 2 drills to Solid</div>
+        </section>
+      </sc-if>
+
+      <div style="margin-top:auto;display:flex;gap:10px;padding-top:8px">
+        <sc-if value="{{ les.canBack }}" hint-placeholder-val="{{ false }}"><button class="btn btn-secondary" onClick="{{ les.onBack }}" style="height:50px;width:56px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button></sc-if>
+        <button class="btn btn-primary blueprint" onClick="{{ les.onNext }}" style="flex:1;height:50px;font-size:17px;opacity:{{ les.nextOp }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ les.nextLabel }}</button>
+      </div>
+      <sc-if value="{{ les.isDone }}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost" onClick="{{ les.onHome }}" style="align-self:center;font-size:15px">Back to Today</button></sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ═══ PRACTICE ═══ -->
+  <sc-if value="{{ r.practice }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <header>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Drills · tests · toolkit</div>
+        <h1 style="margin:2px 0 0;font-size:38px;line-height:1">Practice</h1>
+      </header>
+      <button onClick="{{ goTests }}" class="blueprint" style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--color-bg);color:var(--color-text);text-align:left;cursor:pointer" style-hover="border-color:var(--color-accent)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <span style="flex:none;width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--color-accent);color:var(--color-accent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M10 2h4"></path></svg></span>
+        <span style="flex:1;display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:21px">Adaptive tests</span><span style="font-size:13px;color:var(--muted)">Timed section tests · last: Quant 66 on Oct 14</span></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Drill level</span><span style="font-size:12px;color:var(--muted)">{{ lvlNote }}</span></div>
+        <div style="display:flex;border:1px solid var(--color-divider);background:var(--color-bg);overflow-x:auto">
+          <sc-for list="{{ lvlOpts }}" as="lo" hint-placeholder-count="6">
+            <button onClick="{{ lo.onClick }}" style="flex:1;min-width:max-content;padding:9px 10px;border:0;border-left:{{ lo.bl }};background:{{ lo.bg }};color:{{ lo.ink }};font-size:13px;font-weight:500;cursor:pointer">{{ lo.name }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <sc-for list="{{ topicGroups }}" as="tg" hint-placeholder-count="3">
+        <section style="display:flex;flex-direction:column;gap:10px">
+          <h2 style="margin:0;font-size:22px">{{ tg.name }}</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr));gap:8px">
+            <sc-for list="{{ tg.topics }}" as="tt" hint-placeholder-count="6">
+              <button onClick="{{ tt.onClick }}" style="display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--color-divider);background:var(--color-bg);color:var(--color-text);text-align:left;cursor:pointer;min-height:92px" style-hover="border-color:var(--color-accent);background:var(--color-accent-100)" style-active="transform:scale(.98)">
+                <span style="font-weight:600;font-size:14px;line-height:1.25;flex:1">{{ tt.name }}</span>
+                <span style="display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%"><sc-for list="{{ tt.segs }}" as="sg" hint-placeholder-count="5"><span style="height:4px;background:{{ sg.bg }}"></span></sc-for></span>
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);width:100%"><span>{{ tt.levelName }}</span><span style="font-variant-numeric:tabular-nums">{{ tt.accText }}</span></span>
+              </button>
+            </sc-for>
+          </div>
+        </section>
+      </sc-for>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div><h2 style="margin:0;font-size:22px">Toolkit</h2><div style="font-size:13px;color:var(--muted)">Quick-reference rules. Tap to open.</div></div>
+        <div style="border:1px solid var(--color-divider);background:var(--color-bg)">
+          <sc-for list="{{ tools }}" as="tl" hint-placeholder-count="6">
+            <div style="border-top:{{ tl.bt }}">
+              <button onClick="{{ tl.onClick }}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 14px;border:0;background:transparent;color:var(--color-text);text-align:left;cursor:pointer;font-weight:500;font-size:15px">{{ tl.name }}<span style="font-family:var(--font-heading);font-size:20px;color:var(--muted)">{{ tl.sign }}</span></button>
+              <sc-if value="{{ tl.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:6px;animation:rise .2s ease-out">
+                  <div style="padding:10px 12px;background:var(--color-accent-100);font-family:var(--font-heading);font-size:19px;font-variant-numeric:tabular-nums">{{ tl.rule }}</div>
+                  <div style="font-size:14px;color:var(--muted)">{{ tl.note }}</div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+  <!-- ═══ TESTS ═══ -->
+  <sc-if value="{{ r.tests }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <button onClick="{{ goPractice }}" class="btn btn-ghost" style="align-self:flex-start;gap:4px;padding-left:0;font-size:15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Practice</button>
+      <header>
+        <h1 style="margin:0;font-size:36px;line-height:1">Adaptive tests</h1>
+        <div style="font-size:14px;color:var(--muted);margin-top:4px;text-wrap:pretty">Exam conditions: no solutions until the end, no going back, difficulty adapts to each answer.</div>
+      </header>
+      <sc-for list="{{ testMenu }}" as="tm" hint-placeholder-count="2">
+        <section class="blueprint" style="background:var(--color-bg);padding:16px;display:flex;flex-direction:column;gap:12px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div><div style="font-family:var(--font-heading);font-weight:600;font-size:24px;line-height:1.1">{{ tm.name }}</div><div style="font-size:14px;color:var(--muted)">{{ tm.meta }}</div></div>
+            <span class="tag tag-accent">{{ tm.last }}</span>
+          </div>
+          <button class="btn {{ tm.btnClass }}" onClick="{{ tm.onClick }}" style="height:46px;font-size:16px">Start {{ tm.short }} test</button>
+        </section>
+      </sc-for>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <h2 style="margin:0;font-size:22px">Past tests</h2>
+        <table class="table" style="background:var(--color-bg);border:1px solid var(--color-divider)">
+          <thead><tr><th>Date</th><th>Section</th><th style="text-align:right">Score</th><th style="text-align:right">Right</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ pastTests }}" as="pt" hint-placeholder-count="3">
+              <tr><td>{{ pt.date }}</td><td>{{ pt.sec }}</td><td style="text-align:right;font-family:var(--font-heading);font-weight:600;font-size:17px">{{ pt.score }}</td><td style="text-align:right;color:var(--muted)">{{ pt.right }}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </sc-if>
+
+  <!-- ═══ RESULTS ═══ -->
+  <sc-if value="{{ r.results }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px;animation:rise .3s ease-out">
+      <header>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Quant test #3 · Oct 22</div>
+        <h1 style="margin:2px 0 0;font-size:36px;line-height:1">Results</h1>
+      </header>
+      <section class="blueprint" style="background:var(--color-bg);padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div><div style="font-size:13px;color:var(--muted)">Estimated Quant</div><div style="font-family:var(--font-heading);font-weight:600;font-size:60px;line-height:1">69</div><div style="font-size:13px;color:var(--ok);font-weight:500">+3 vs. last test</div></div>
+        <div style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end">
+          <div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--muted)">Right</span><span style="font-weight:600">14 / 21</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--muted)">Time</span><span style="font-weight:600">43:10 / 45:00</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--muted)">Over 2:00</span><span style="font-weight:600;color:var(--bad)">5 questions</span></div>
+        </div>
+      </section>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <h2 style="margin:0;font-size:22px">By topic · weakest first</h2>
+        <div style="border:1px solid var(--color-divider);background:var(--color-bg)">
+          <sc-for list="{{ resRows }}" as="rr" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:1fr 90px 44px;gap:10px;align-items:center;padding:11px 14px;border-top:{{ rr.bt }}">
+              <span style="font-size:14px;font-weight:500">{{ rr.name }}</span>
+              <span style="height:6px;background:var(--color-divider)"><span style="display:block;height:100%;width:{{ rr.pct }};background:{{ rr.color }}"></span></span>
+              <span style="text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:{{ rr.color }};font-weight:600">{{ rr.txt }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary blueprint" onClick="{{ goMistakes }}" style="height:48px;font-size:16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Review the 7 misses</button>
+        <button class="btn btn-ghost" onClick="{{ goPractice }}" style="font-size:15px">Back to Practice</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ═══ RUNNER ═══ -->
+  <sc-if value="{{ r.runner }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;position:sticky;top:0;z-index:2;background:var(--color-bg);margin:-4px -4px 0;padding:4px 4px 10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button onClick="{{ rv.onClose }}" class="btn btn-ghost btn-icon" style="color:var(--color-text)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+          <div style="flex:1;display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:17px;line-height:1.1">{{ rv.title }}</span><span style="font-size:12px;color:var(--muted)">{{ rv.count }}</span></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;padding:4px 10px;border:1px solid {{ rv.timerBorder }};background:{{ rv.timerBg }};transition:all .3s">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1;font-variant-numeric:tabular-nums;color:{{ rv.timerColor }}">{{ rv.timer }}</span>
+            <span style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:{{ rv.timerSub }}">target 2:00</span>
+          </div>
+        </div>
+        <div style="height:3px;background:var(--color-divider)"><div style="height:100%;width:{{ rv.pct }};background:var(--color-accent);transition:width .4s"></div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:24px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag tag-accent">{{ rv.kind }}</span><span class="tag tag-neutral" style="background:var(--color-surface);color:var(--color-text)">{{ rv.topic }}</span><span class="tag tag-neutral" style="background:var(--color-surface);color:var(--muted)">{{ rv.diff }}</span></div>
+          <sc-if value="{{ rv.hasPassage }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid var(--color-divider);background:var(--color-surface);padding:14px;display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Passage</span>
+              <p style="margin:0;font-size:15.5px;line-height:1.6;text-wrap:pretty">{{ rv.passage }}</p>
+            </div>
+          </sc-if>
+          <sc-if value="{{ rv.hasTable }}" hint-placeholder-val="{{ false }}">
+            <table class="table" style="border:1px solid var(--color-divider);background:var(--color-bg);font-variant-numeric:tabular-nums">
+              <thead><tr><sc-for list="{{ rv.thead }}" as="th" hint-placeholder-count="3"><th>{{ th.c }}</th></sc-for></tr></thead>
+              <tbody><sc-for list="{{ rv.trows }}" as="tr" hint-placeholder-count="4"><tr><sc-for list="{{ tr.cells }}" as="td" hint-placeholder-count="3"><td>{{ td.c }}</td></sc-for></tr></sc-for></tbody>
+            </table>
+          </sc-if>
+          <div style="font-size:17.5px;line-height:1.5;font-weight:500;text-wrap:pretty"><sc-for list="{{ rv.stem }}" as="sm" hint-placeholder-count="1"><span>{{ sm.t }}<sup style="font-size:.68em">{{ sm.s }}</sup></span></sc-for></div>
+          <sc-if value="{{ rv.isDS }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ rv.stmts }}" as="st" hint-placeholder-count="2">
+                <div style="display:flex;gap:12px;align-items:baseline;padding:10px 12px;border:1px solid var(--color-divider);background:var(--color-bg)"><span style="font-family:var(--font-heading);font-weight:600;font-size:17px;color:var(--color-accent-700)">{{ st.n }}</span><span style="font-size:17px;font-variant-numeric:tabular-nums">{{ st.t }}<sup style="font-size:.68em">{{ st.s }}</sup>{{ st.t2 }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ rv.choices }}" as="c" hint-placeholder-count="5">
+              <button onClick="{{ c.onClick }}" style="display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:11px 12px;border:1px solid {{ c.border }};background:{{ c.bg }};opacity:{{ c.op }};color:var(--color-text);cursor:{{ c.cursor }};transition:background .15s,border-color .15s,opacity .3s;animation:{{ c.anim }}" style-active="transform:scale(.99)">
+                <span style="flex:none;width:30px;height:30px;display:grid;place-items:center;border:1px solid {{ c.badgeBorder }};background:{{ c.badgeBg }};color:{{ c.badgeInk }};font-family:var(--font-heading);font-weight:600;font-size:16px;transition:all .15s">{{ c.letter }}</span>
+                <span style="flex:1;font-size:15px;line-height:1.45;padding-top:4px">{{ c.text }}</span>
+                <sc-if value="{{ c.isOk }}" hint-placeholder-val="{{ false }}"><svg style="flex:none;margin-top:5px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" style="stroke-dasharray:30;animation:draw .4s both"></path></svg></sc-if>
+                <sc-if value="{{ c.isBad }}" hint-placeholder-val="{{ false }}"><svg style="flex:none;margin-top:5px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></sc-if>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ rv.showConfirm }}" hint-placeholder-val="{{ true }}">
+            <button class="btn btn-primary blueprint" onClick="{{ rv.onConfirm }}" style="height:50px;font-size:17px;opacity:{{ rv.confirmOp }};margin-top:4px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ rv.confirmLabel }}</button>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ rv.showSol }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:14px;animation:rise .35s ease-out">
+            <sc-if value="{{ rv.correct }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--ok-bg);border:1px solid var(--ok);animation:pop .45s cubic-bezier(.2,.8,.2,1)">
+                <span style="flex:none;width:40px;height:40px;display:grid;place-items:center;background:var(--ok);color:var(--color-bg)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:30;animation:draw .4s .1s both"><path d="M20 6 9 17l-5-5"></path></svg></span>
+                <div style="flex:1;display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1;color:var(--ok)">Correct · {{ rv.timer }}</span><span style="font-size:13px">{{ rv.okNote }}</span></div>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:var(--ok)">{{ rv.inRow }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;padding:0 2px">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>{{ rv.topic }} · toward Solid ~600</span><span>4 of 6</span></div>
+                <div style="height:5px;background:var(--color-divider);position:relative"><div style="position:absolute;inset:0;width:50%;background:var(--color-accent)"></div><div style="position:absolute;top:0;bottom:0;left:50%;width:16.7%;background:var(--ok);transform-origin:left;animation:grow .6s .35s both"></div></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ rv.wrong }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bad-bg);border:1px solid var(--bad)">
+                <span style="flex:none;width:40px;height:40px;display:grid;place-items:center;border:1.5px solid var(--bad);color:var(--bad);font-family:var(--font-heading);font-weight:600;font-size:20px">{{ rv.ansLetter }}</span>
+                <div style="display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.1;color:var(--bad)">Not this time · {{ rv.timer }}</span><span style="font-size:13px">The answer is {{ rv.ansLetter }}. It’s saved to Mistakes and comes back tomorrow.</span></div>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Solution</span>
+              <sc-for list="{{ rv.steps }}" as="sp" hint-placeholder-count="3">
+                <div style="display:flex;gap:12px;align-items:flex-start"><span style="flex:none;width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--color-divider);font-family:var(--font-heading);font-weight:600;font-size:14px">{{ sp.n }}</span><span style="font-size:15px;line-height:1.5;padding-top:1px;text-wrap:pretty">{{ sp.t }}</span></div>
+              </sc-for>
+            </div>
+            <div class="blueprint" style="background:var(--color-accent-100);border-color:var(--color-accent);padding:14px;display:flex;gap:12px">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <svg style="flex:none;margin-top:2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg>
+              <div style="display:flex;flex-direction:column;gap:3px"><span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Fastest method</span><span style="font-size:15px;line-height:1.5;text-wrap:pretty">{{ rv.fast }}</span></div>
+            </div>
+            <sc-if value="{{ rv.wrong }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:18px">Why did you miss it?</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <sc-for list="{{ rv.reasons }}" as="rs" hint-placeholder-count="4">
+                    <button onClick="{{ rs.onClick }}" style="padding:8px 12px;border:1px solid {{ rs.border }};background:{{ rs.bg }};color:{{ rs.ink }};font-size:14px;cursor:pointer;display:flex;gap:6px;align-items:center" style-hover="border-color:var(--color-accent)">{{ rs.label }}</button>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ rv.reasonSaved }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--muted);animation:rise .2s ease-out">Tagged. You’ll see it again in 1 day, then 3, 7 and 14.</span></sc-if>
+              </div>
+            </sc-if>
+            <sc-if value="{{ rv.altOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:14px;border:1px dashed var(--color-divider);font-size:15px;line-height:1.55;animation:rise .25s ease-out;text-wrap:pretty"><span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px">Another way</span>{{ rv.alt }}</div>
+            </sc-if>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onClick="{{ rv.onAlt }}" style="flex:1;min-width:150px;height:50px;font-size:15px">{{ rv.altLabel }}</button>
+              <button class="btn btn-primary blueprint" onClick="{{ rv.onNext }}" style="flex:1.3;min-width:150px;height:50px;font-size:17px;gap:6px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ rv.nextLabel }}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ═══ REVIEW HUB ═══ -->
+  <sc-if value="{{ r.review }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <header>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Repetition does the heavy lifting</div>
+        <h1 style="margin:2px 0 0;font-size:38px;line-height:1">Review</h1>
+      </header>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onClick="{{ goMistakes }}" class="blueprint" style="display:flex;flex-direction:column;gap:6px;padding:14px;background:var(--color-bg);color:var(--color-text);text-align:left;cursor:pointer" style-hover="border-color:var(--color-accent)">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span style="font-size:13px;color:var(--muted)">Mistakes</span>
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1">{{ mv.dueCount }}<span style="font-size:15px;color:var(--muted);font-weight:400"> due</span></span>
+          <span style="font-size:12px;color:var(--muted)">{{ mv.openCount }} open · 14 cleared</span>
+        </button>
+        <button onClick="{{ openSprint }}" class="blueprint" style="display:flex;flex-direction:column;gap:6px;padding:14px;background:var(--color-bg);color:var(--color-text);text-align:left;cursor:pointer" style-hover="border-color:var(--color-accent)">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span style="font-size:13px;color:var(--muted)">Mental sprint</span>
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1">2:41</span>
+          <span style="font-size:12px;color:var(--muted)">Best · 20 items · no calculator</span>
+        </button>
+      </div>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><h2 style="margin:0;font-size:22px">Flashcards</h2><span style="font-size:13px;color:var(--muted)">{{ flashDueTotal }} due today</span></div>
+        <sc-if value="{{ nothingDue }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:22px 16px;border:1px dashed var(--color-divider);display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:22px">All caught up</span>
+            <span style="font-size:14px;color:var(--muted);text-wrap:pretty">Nothing is due. 14 cards come back tomorrow. Learning ahead weakens spacing, so rest here or run a sprint.</span>
+            <button class="btn btn-secondary" onClick="{{ openSprint }}" style="margin-top:6px">Run a mental sprint</button>
+          </div>
+        </sc-if>
+        <div style="border:1px solid var(--color-divider);background:var(--color-bg)">
+          <sc-for list="{{ decks }}" as="dk" hint-placeholder-count="11">
+            <button onClick="{{ dk.onClick }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-top:{{ dk.bt }};background:transparent;color:var(--color-text);text-align:left;cursor:pointer" style-hover="background:var(--color-accent-100)">
+              <span style="flex:none;width:44px;height:32px;display:grid;place-items:center;border:1px solid var(--color-divider);font-family:var(--font-heading);font-weight:600;font-size:15px">{{ dk.sample }}</span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-weight:500;font-size:15px">{{ dk.name }}</span><span style="font-size:12px;color:var(--muted)">{{ dk.sub }}</span></span>
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:17px;color:{{ dk.dueColor }}">{{ dk.dueText }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+  <!-- ═══ FLASHCARDS ═══ -->
+  <sc-if value="{{ r.flash }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:18px;min-height:100%">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onClick="{{ fv.onClose }}" class="btn btn-ghost btn-icon" style="color:var(--color-text)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        <div style="flex:1;display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:18px;line-height:1.1">{{ fv.deck }}</span><span style="font-size:12px;color:var(--muted)">{{ fv.count }}</span></div>
+        <div style="display:flex;border:1px solid var(--color-divider)">
+          <sc-for list="{{ fv.modes }}" as="md" hint-placeholder-count="2"><button onClick="{{ md.onClick }}" style="padding:6px 12px;border:0;background:{{ md.bg }};color:{{ md.ink }};font-size:13px;font-weight:500;cursor:pointer">{{ md.name }}</button></sc-for>
+        </div>
+      </div>
+      <div style="height:3px;background:var(--color-divider)"><div style="height:100%;width:{{ fv.pct }};background:var(--color-accent);transition:width .3s"></div></div>
+
+      <sc-if value="{{ fv.notDone }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:18px;flex:1">
+          <button onClick="{{ fv.onFlip }}" style="position:relative;height:300px;border:0;padding:0;background:transparent;perspective:1200px;cursor:pointer;color:var(--color-text)">
+            <div style="position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.3,.7,.3,1);transform:{{ fv.rot }}">
+              <div class="blueprint" style="position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--color-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+                <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:{{ fv.frontSize }};line-height:1;font-variant-numeric:tabular-nums;text-align:center;padding:0 16px">{{ fv.front }}</span>
+                <span style="position:absolute;bottom:14px;font-size:13px;color:var(--muted)">{{ fv.hint }}</span>
+              </div>
+              <div class="blueprint" style="position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:rotateY(180deg);background:var(--color-accent-100);border-color:var(--color-accent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+                <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+                <span style="font-size:15px;color:var(--muted);font-family:var(--font-heading)">{{ fv.front }} =</span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:{{ fv.backSize }};line-height:1;font-variant-numeric:tabular-nums;color:var(--color-accent-800);text-align:center;padding:0 16px">{{ fv.back }}</span>
+              </div>
+            </div>
+          </button>
+
+          <sc-if value="{{ fv.isType }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <input value="{{ fv.input }}" onChange="{{ fv.onInput }}" onKeyDown="{{ fv.onKey }}" placeholder="Type the answer" style="height:58px;padding:0 16px;border:1.5px solid {{ fv.inputBorder }};background:var(--color-bg);color:var(--color-text);font-family:var(--font-heading);font-weight:600;font-size:28px;text-align:center;outline:none;animation:{{ fv.anim }}">
+              <sc-if value="{{ fv.checked }}" hint-placeholder-val="{{ false }}"><div style="text-align:center;font-family:var(--font-heading);font-weight:600;font-size:18px;color:{{ fv.fbColor }};animation:pop .3s ease-out">{{ fv.fbText }}</div></sc-if>
+            </div>
+          </sc-if>
+
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+            <sc-for list="{{ fv.boxes }}" as="bx" hint-placeholder-count="4">
+              <div style="padding:8px;border:1px solid {{ bx.border }};background:var(--color-bg);display:flex;flex-direction:column;gap:2px;transition:border-color .3s">
+                <span style="font-size:11px;color:var(--muted)">{{ bx.label }}</span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:20px;line-height:1;font-variant-numeric:tabular-nums">{{ bx.n }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:-10px">Leitner boxes. A known card moves right and comes back later; a miss drops to box 1.</div>
+
+          <div style="margin-top:auto;display:flex;gap:10px">
+            <sc-if value="{{ fv.showGrade }}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-secondary" onClick="{{ fv.onAgain }}" style="flex:1;height:52px;font-size:16px;color:var(--bad);border-color:var(--bad)">Again · 1 day</button>
+              <button class="btn btn-primary blueprint" onClick="{{ fv.onGot }}" style="flex:1;height:52px;font-size:16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Got it · {{ fv.nextDays }}</button>
+            </sc-if>
+            <sc-if value="{{ fv.showMain }}" hint-placeholder-val="{{ true }}">
+              <button class="btn btn-primary blueprint" onClick="{{ fv.onMain }}" style="flex:1;height:52px;font-size:17px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ fv.mainLabel }}</button>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ fv.done }}" hint-placeholder-val="{{ false }}">
+        <section class="blueprint" style="background:var(--color-bg);padding:22px;display:flex;flex-direction:column;gap:12px;animation:pop .45s ease-out">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span style="width:48px;height:48px;display:grid;place-items:center;background:var(--ok);color:var(--color-bg)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:30;animation:draw .5s .15s both"><path d="M20 6 9 17l-5-5"></path></svg></span>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1">Deck done</div>
+          <div style="font-size:15px">{{ fv.known }} of {{ fv.total }} known. Misses come back tomorrow; the rest in 3 to 14 days.</div>
+          <button class="btn btn-primary blueprint" onClick="{{ fv.onFinish }}" style="height:48px;font-size:16px;margin-top:6px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ fv.finishLabel }}</button>
+        </section>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ═══ SPRINT ═══ -->
+  <sc-if value="{{ r.sprint }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:14px;min-height:100%">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onClick="{{ sv.onClose }}" class="btn btn-ghost btn-icon" style="color:var(--color-text)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        <div style="flex:1;display:flex;flex-direction:column"><span style="font-family:var(--font-heading);font-weight:600;font-size:18px;line-height:1.1">Mental maths sprint</span><span style="font-size:12px;color:var(--muted)">{{ sv.count }}</span></div>
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:24px;font-variant-numeric:tabular-nums">{{ sv.timer }}</span>
+      </div>
+      <div style="height:3px;background:var(--color-divider)"><div style="height:100%;width:{{ sv.pct }};background:var(--color-accent);transition:width .2s"></div></div>
+      <sc-if value="{{ sv.active }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+          <div style="flex:1;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:{{ sv.flashBg }};transition:background .25s;border:1px solid {{ sv.flashBorder }}">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:64px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;text-align:center">{{ sv.problem }}</span>
+            <span style="min-width:180px;height:70px;padding:0 18px;display:flex;align-items:center;justify-content:center;border-bottom:2px solid {{ sv.lineColor }};font-family:var(--font-heading);font-weight:600;font-size:52px;font-variant-numeric:tabular-nums;color:var(--color-accent-700)">{{ sv.input }}</span>
+            <span style="height:20px;font-size:14px;font-weight:500;color:{{ sv.msgColor }}">{{ sv.msg }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+            <sc-for list="{{ sv.keys }}" as="k" hint-placeholder-count="12">
+              <button onClick="{{ k.onClick }}" style="height:58px;border:1px solid {{ k.border }};background:{{ k.bg }};color:{{ k.ink }};font-family:var(--font-heading);font-weight:600;font-size:26px;cursor:pointer;display:grid;place-items:center" style-active="transform:scale(.96);background:var(--color-accent-200)">{{ k.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ sv.done }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:18px;animation:rise .3s ease-out">
+          <section class="blueprint" style="background:var(--color-bg);padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div><div style="font-size:13px;color:var(--muted)">Score</div><div style="font-family:var(--font-heading);font-weight:600;font-size:40px;line-height:1">{{ sv.score }}</div></div>
+            <div><div style="font-size:13px;color:var(--muted)">Time</div><div style="font-family:var(--font-heading);font-weight:600;font-size:40px;line-height:1">{{ sv.timer }}</div></div>
+            <div><div style="font-size:13px;color:var(--muted)">Per item</div><div style="font-family:var(--font-heading);font-weight:600;font-size:40px;line-height:1">{{ sv.avg }}</div></div>
+            <div style="grid-column:1/-1;font-size:13px;color:var(--muted)">Best 2:41 · aim for under 6s per item before exam day.</div>
+          </section>
+          <section style="display:flex;flex-direction:column;gap:8px">
+            <h2 style="margin:0;font-size:22px">Facts you missed</h2>
+            <sc-if value="{{ sv.noMiss }}" hint-placeholder-val="{{ false }}"><div style="padding:14px;border:1px dashed var(--color-divider);font-size:14px;color:var(--muted)">None. Clean sprint.</div></sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ sv.missed }}" as="ms" hint-placeholder-count="3">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;padding:10px 14px;border:1px solid var(--color-divider);background:var(--color-bg);font-variant-numeric:tabular-nums">
+                  <span style="font-family:var(--font-heading);font-weight:600;font-size:21px">{{ ms.p }} = {{ ms.a }}</span>
+                  <span style="font-size:13px;color:var(--bad)">you: {{ ms.g }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <span style="font-size:12px;color:var(--muted)">Missed facts are added to your flashcards.</span>
+          </section>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary" onClick="{{ sv.onAgain }}" style="flex:1;height:50px;font-size:16px">Run again</button>
+            <button class="btn btn-primary blueprint" onClick="{{ sv.onFinish }}" style="flex:1;height:50px;font-size:16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ sv.finishLabel }}</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ═══ MISTAKES ═══ -->
+  <sc-if value="{{ r.mistakes }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <button onClick="{{ goReview }}" class="btn btn-ghost" style="align-self:flex-start;gap:4px;padding-left:0;font-size:15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Review</button>
+      <h1 style="margin:0;font-size:36px;line-height:1">Mistakes</h1>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--color-divider);background:var(--color-bg)">
+        <sc-for list="{{ mv.counters }}" as="ct" hint-placeholder-count="3">
+          <div style="padding:12px 14px;border-left:{{ ct.bl }};display:flex;flex-direction:column"><span style="font-size:13px;color:var(--muted)">{{ ct.name }}</span><span style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.05;color:{{ ct.color }}">{{ ct.n }}</span></div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:14px;border:1px dashed var(--color-divider)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;padding:3px 8px;background:var(--bad-bg);color:var(--bad);font-weight:600">Miss</span>
+          <sc-for list="{{ intervals }}" as="iv" hint-placeholder-count="4"><span style="flex:1;height:1px;background:var(--color-divider)"></span><span style="font-family:var(--font-heading);font-weight:600;font-size:15px;padding:2px 7px;border:1px solid var(--color-divider)">{{ iv }}</span></sc-for>
+          <span style="flex:.6;height:1px;background:var(--color-divider)"></span>
+          <span style="font-size:12px;padding:3px 8px;background:var(--ok-bg);color:var(--ok);font-weight:600">Cleared</span>
+        </div>
+        <span style="font-size:14px;text-wrap:pretty">Each miss returns after 1, 3, 7 and 14 days. Four clean answers in a row clear it; a slip sends it back to day 1.</span>
+      </div>
+      <sc-if value="{{ mv.hasDue }}" hint-placeholder-val="{{ true }}">
+        <section style="display:flex;flex-direction:column;gap:10px">
+          <h2 style="margin:0;font-size:22px">Due now</h2>
+          <div style="border:1px solid var(--color-divider);background:var(--color-bg)">
+            <sc-for list="{{ mv.due }}" as="du" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:{{ du.bt }}"><span style="flex:1;display:flex;flex-direction:column"><span style="font-weight:500">{{ du.title }}</span><span style="font-size:12px;color:var(--muted)">{{ du.topic }} · {{ du.reason }}</span></span><span style="font-size:12px;color:var(--muted)">{{ du.step }}</span></div>
+            </sc-for>
+          </div>
+          <button class="btn btn-primary blueprint" onClick="{{ mv.onReview }}" style="height:48px;font-size:16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Review {{ mv.dueCount }} due · about {{ mv.dueMin }} min</button>
+        </section>
+      </sc-if>
+      <sc-if value="{{ mv.noDue }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:24px 16px;border:1px dashed var(--color-divider);display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+          <span style="width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--ok);color:var(--ok)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:22px">Nothing due right now</span>
+          <span style="font-size:14px;color:var(--muted);text-wrap:pretty">2 mistakes come back tomorrow. Misses from today’s drills will appear here automatically.</span>
+        </div>
+      </sc-if>
+      <section style="display:flex;flex-direction:column;gap:12px">
+        <h2 style="margin:0;font-size:22px">All open · by topic</h2>
+        <sc-for list="{{ mv.groups }}" as="gr" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)"><span>{{ gr.topic }}</span><span>{{ gr.n }}</span></div>
+            <sc-for list="{{ gr.items }}" as="it" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid var(--color-divider);background:var(--color-bg)">
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><span style="font-weight:500">{{ it.title }}</span><span style="font-size:12px;color:{{ it.nextColor }};white-space:nowrap">{{ it.next }}</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                  <span class="tag" style="background:var(--color-surface);color:var(--color-text);border:1px solid var(--color-divider)">{{ it.reason }}</span>
+                  <span style="display:flex;gap:3px" title="Clean answers"><sc-for list="{{ it.dots }}" as="dt" hint-placeholder-count="4"><span style="width:14px;height:6px;background:{{ dt.bg }}"></span></sc-for></span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </sc-if>
+
+  <!-- ═══ PROGRESS ═══ -->
+  <sc-if value="{{ r.progress }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <header>
+        <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Official practice exams</div>
+        <h1 style="margin:2px 0 0;font-size:38px;line-height:1">Progress</h1>
+      </header>
+      <sc-if value="{{ pv.has }}" hint-placeholder-val="{{ true }}">
+        <section class="blueprint" style="background:var(--color-bg);padding:16px;display:flex;flex-direction:column;gap:8px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:var(--font-heading);font-weight:600;font-size:20px">Score history</span><span style="font-size:13px;color:var(--muted)">{{ pv.summary }}</span></div>
+          <div style="position:relative;width:100%;aspect-ratio:340/190;font-variant-numeric:tabular-nums">
+            <svg viewBox="0 0 340 190" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible">
+              <sc-for list="{{ pv.gridLines }}" as="gl" hint-placeholder-count="4">
+                <line x1="34" x2="334" y1="{{ gl.y }}" y2="{{ gl.y }}" stroke="var(--color-divider)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+              </sc-for>
+              <line x1="34" x2="334" y1="{{ pv.ty }}" y2="{{ pv.ty }}" stroke="var(--color-text)" stroke-width="1.5" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"></line>
+              <polyline points="{{ pv.pts }}" fill="none" stroke="var(--color-accent)" stroke-width="2" vector-effect="non-scaling-stroke"></polyline>
+            </svg>
+            <sc-for list="{{ pv.gridLines }}" as="gl" hint-placeholder-count="4">
+              <span style="position:absolute;right:{{ gl.right }};top:{{ gl.top }};transform:translateY(-50%);font-size:10px;line-height:1;color:var(--muted)">{{ gl.v }}</span>
+            </sc-for>
+            <span style="position:absolute;right:0;top:{{ pv.tTop }};transform:translateY(-120%);font-size:11px;font-weight:600;line-height:1">Target {{ target }}</span>
+            <sc-for list="{{ pv.dots }}" as="d" hint-placeholder-count="3">
+              <span style="position:absolute;left:{{ d.left }};top:{{ d.top }};width:9px;height:9px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid var(--color-accent);background:var(--color-bg)"></span>
+              <span style="position:absolute;left:{{ d.left }};top:{{ d.top }};transform:translate(-50%,-160%);font-size:12px;font-weight:600;line-height:1">{{ d.v }}</span>
+              <span style="position:absolute;left:{{ d.left }};bottom:0;transform:translateX(-50%);font-size:10px;line-height:1;color:var(--muted);white-space:nowrap">{{ d.date }}</span>
+            </sc-for>
+          </div>
+        </section>
+        <div style="border:1px solid var(--color-divider);background:var(--color-bg)">
+          <sc-for list="{{ pv.rows }}" as="sr" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 14px;border-top:{{ sr.bt }}">
+              <span style="display:flex;flex-direction:column"><span style="font-weight:500;font-size:14px">{{ sr.label }}</span><span style="font-size:12px;color:var(--muted)">{{ sr.date }} · Q {{ sr.q }} · V {{ sr.v }} · DI {{ sr.di }}</span></span>
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ sr.total }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ pv.empty }}" hint-placeholder-val="{{ false }}">
+        <section class="blueprint" style="background:var(--color-bg);padding:22px 18px;display:flex;flex-direction:column;gap:10px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="height:110px;border-bottom:1px solid var(--color-divider);border-left:1px solid var(--color-divider);position:relative">
+            <div style="position:absolute;left:0;right:0;top:22px;border-top:1.5px dashed var(--color-text)"></div>
+            <span style="position:absolute;right:0;top:4px;font-size:11px;font-weight:600">Target {{ target }}</span>
+          </div>
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:22px">No official scores yet</span>
+          <span style="font-size:14px;color:var(--muted);text-wrap:pretty">Take an official practice exam (mba.com), then log it below. Until then your estimate comes from drills only.</span>
+        </section>
+      </sc-if>
+
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <h2 style="margin:0;font-size:22px">Weakest topics</h2>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ pv.weakest }}" as="wk" hint-placeholder-count="3">
+            <button onClick="{{ wk.onClick }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--color-divider);background:var(--color-bg);color:var(--color-text);text-align:left;cursor:pointer" style-hover="border-color:var(--color-accent)">
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:22px;color:var(--bad);width:46px;font-variant-numeric:tabular-nums">{{ wk.acc }}</span>
+              <span style="flex:1;display:flex;flex-direction:column"><span style="font-weight:500">{{ wk.name }}</span><span style="font-size:12px;color:var(--muted)">{{ wk.sec }} · {{ wk.levelName }}</span></span>
+              <span style="font-size:13px;color:var(--color-accent-700);font-weight:500">Drill</span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <h2 style="margin:0;font-size:22px">By section</h2>
+          <div style="display:flex;border:1px solid var(--color-divider);background:var(--color-bg)">
+            <sc-for list="{{ pv.secTabs }}" as="stb" hint-placeholder-count="3"><button onClick="{{ stb.onClick }}" style="padding:6px 12px;border:0;background:{{ stb.bg }};color:{{ stb.ink }};font-size:13px;font-weight:500;cursor:pointer">{{ stb.name }}</button></sc-for>
+          </div>
+        </div>
+        <table class="table" style="background:var(--color-bg);border:1px solid var(--color-divider)">
+          <thead><tr><th>Topic</th><th>Level</th><th style="text-align:right">Acc.</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ pv.table }}" as="tr" hint-placeholder-count="6">
+              <tr>
+                <td style="font-weight:500">{{ tr.name }}</td>
+                <td><span style="display:flex;flex-direction:column;gap:3px"><span style="display:grid;grid-template-columns:repeat(5,10px);gap:2px"><sc-for list="{{ tr.segs }}" as="sg" hint-placeholder-count="5"><span style="height:4px;background:{{ sg.bg }}"></span></sc-for></span><span style="font-size:11px;color:var(--muted)">{{ tr.levelName }}</span></span></td>
+                <td style="text-align:right;font-family:var(--font-heading);font-weight:600;font-size:17px;color:{{ tr.color }}">{{ tr.accText }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="blueprint" style="background:var(--color-bg);padding:16px;display:flex;flex-direction:column;gap:12px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div><span style="font-family:var(--font-heading);font-weight:600;font-size:20px">Log an official exam</span><div style="font-size:13px;color:var(--muted)">Total 205–805 · sections 60–90</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field"><label>Date</label><input class="input" placeholder="Nov 14" value="{{ form.date }}" onChange="{{ formOn.date }}"></div>
+          <div class="field"><label>Total</label><input class="input" type="number" placeholder="505" value="{{ form.total }}" onChange="{{ formOn.total }}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div class="field"><label>Quant</label><input class="input" type="number" placeholder="70" value="{{ form.q }}" onChange="{{ formOn.q }}"></div>
+          <div class="field"><label>Verbal</label><input class="input" type="number" placeholder="78" value="{{ form.v }}" onChange="{{ formOn.v }}"></div>
+          <div class="field"><label>DI</label><input class="input" type="number" placeholder="75" value="{{ form.di }}" onChange="{{ formOn.di }}"></div>
+        </div>
+        <sc-if value="{{ formErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--bad);animation:shake .3s">{{ formErr }}</div></sc-if>
+        <sc-if value="{{ formOk }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--ok);animation:rise .2s">Saved. Chart and estimate updated.</div></sc-if>
+        <button class="btn btn-primary blueprint" onClick="{{ onLog }}" style="height:46px;font-size:16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Save score</button>
+      </section>
+    </div>
+  </sc-if>
+
+  </div>
+  </div>
+
+  <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+    <nav style="flex:none;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--color-divider);background:var(--color-bg);padding:6px 4px 22px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+        <button onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border:0;background:transparent;color:{{ t.color }};cursor:pointer;position:relative">
+          <span style="position:absolute;top:-7px;left:30%;right:30%;height:2px;background:{{ t.bar }}"></span>
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d1 }}"></path><path d="{{ t.d2 }}"></path><path d="{{ t.d3 }}"></path></svg>
+          <span style="font-size:11px;font-weight:500">{{ t.label }}</span>
+          <sc-if value="{{ t.badge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:2px;left:58%;min-width:16px;height:16px;padding:0 4px;background:var(--color-accent);color:var(--color-bg);font-size:10px;font-weight:700;display:grid;place-items:center">{{ t.badge }}</span></sc-if>
+        </button>
+      </sc-for>
+    </nav>
+  </sc-if>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;View&quot;},&quot;desktop&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;View&quot;},&quot;target&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:705,&quot;min&quot;:605,&quot;max&quot;:805,&quot;step&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Goal&quot;}}">
+const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+const LV = ['Foundation', 'Building', 'Solid ~600', 'Strong ~655', 'Elite 705+'];
+const segs = l => [0, 1, 2, 3, 4].map(i => ({ bg: i <= l ? 'var(--color-accent)' : 'var(--color-divider)' }));
+const lvName = l => (l < 0 ? 'Not started' : LV[l]);
+const LET = 'ABCDE';
+const BT = '1px solid var(--color-divider)';
+const DSC = ['Statement (1) ALONE is sufficient, but statement (2) alone is not sufficient.', 'Statement (2) ALONE is sufficient, but statement (1) alone is not sufficient.', 'BOTH statements TOGETHER are sufficient, but NEITHER statement ALONE is sufficient.', 'EACH statement ALONE is sufficient.', 'Statements (1) and (2) TOGETHER are NOT sufficient.'];
+const QS = [
+  { topic: 'Percents', kind: 'Problem solving', diff: 'Solid ~600', stem: [{ t: "A jacket's price is raised by 20%, and then the new price is cut by 20%. The final price is what percent of the original price?" }], choices: ['100%', '98%', '96%', '94%', '80%'], ans: 2, steps: ['Turn each change into a multiplier: +20% is ×1.2, −20% is ×0.8.', 'Multiply the multipliers: 1.2 × 0.8 = 0.96.', 'The final price is 96% of the original.'], fast: 'Successive change: a + b + ab/100 = 20 − 20 − 4 = −4%. So 96%. Ten seconds, no multiplying.', alt: 'Start from $100. Up 20% gives $120. 20% of $120 is $24, so it falls to $96. The cut acts on a bigger base than the raise did.' },
+  { topic: 'Exponents & roots', kind: 'Problem solving', diff: 'Building', stem: [{ t: 'If 2', s: 'x' }, { t: ' · 4', s: '3' }, { t: ' = 2', s: '10' }, { t: ', what is the value of x?' }], choices: ['2', '3', '4', '5', '7'], ans: 2, steps: ['Rewrite 4 as 2²: 4³ = (2²)³ = 2⁶.', 'Combine: 2ˣ · 2⁶ = 2ˣ⁺⁶.', 'Set the exponents equal: x + 6 = 10, so x = 4.'], fast: 'Put every term on the same base, then compare exponents. Never compute 4³ = 64.', alt: 'Think in doublings. 4³ = 64 is six doublings of 1. 2¹⁰ needs ten, so 2ˣ supplies the other four.' },
+  { topic: 'Number properties', kind: 'Data sufficiency', diff: 'Solid ~600', stem: [{ t: 'Is x > 0?' }], st: [{ t: 'x', s: '2', t2: ' = 9' }, { t: 'x', s: '3', t2: ' = 27' }], choices: DSC, ans: 1, steps: ['(1) x² = 9 gives x = 3 or x = −3. One yes, one no: not sufficient.', '(2) x³ = 27 gives only x = 3. Odd powers keep the sign: sufficient.', '(2) alone works and (1) alone does not, so B.'], fast: 'Even powers hide the sign; odd powers keep it. Spot that and you are done in 20 seconds.', alt: 'Test numbers. For (1), try 3 and −3: both square to 9 but give different answers. For (2), only 3 cubes to 27, because (−3)³ = −27.' },
+  { topic: 'Weaken', kind: 'Critical reasoning', diff: 'Strong ~655', passage: "Last year, Riverton's council installed brighter streetlights along Main Street. Since then, reported nighttime thefts on Main Street have fallen by 30 percent. The council concludes that brighter lighting deters theft and plans to install it citywide.", stem: [{ t: "Which of the following, if true, most seriously weakens the council's conclusion?" }], choices: ['Residents of several other streets have asked for brighter lights.', 'The new lights use less electricity than the ones they replaced.', 'Last year a police substation opened on Main Street and began nightly foot patrols.', 'Daytime thefts on Main Street did not change over the same period.', 'Brighter lighting has reduced theft in some other cities.'], ans: 2, steps: ['Conclusion: the lights caused the drop in theft.', 'To weaken a causal claim, find another cause that fits the same time and place.', '(C) gives one: nightly patrols started on Main Street in the same year.'], fast: 'Causal conclusion? Hunt for an alternative cause first. It is the most common right answer on Weaken.', alt: 'Imagine the council is wrong. What else could explain 30% fewer thefts on that street that year? Nightly patrols are the obvious rival explanation.' },
+  { topic: 'Tables', kind: 'Data Insights · Table', diff: 'Building', table: { head: ['Region', 'Q1 sales', 'Q2 sales'], rows: [['North', '120', '150'], ['South', '80', '92'], ['East', '200', '210'], ['West', '50', '70']] }, stem: [{ t: 'Which region had the greatest percent increase in sales from Q1 to Q2?' }], choices: ['North', 'South', 'East', 'West', 'North and West are tied'], ans: 3, steps: ['Percent increase = change ÷ Q1 value.', 'North 30/120 = 25%, South 12/80 = 15%, East 10/200 = 5%, West 20/50 = 40%.', 'West is greatest.'], fast: 'Compare change to base by eye: West gains 20 on 50, more than a third. Nothing else reaches a quarter.', alt: 'The biggest raw gain (North, +30) is the trap. Percent change cares about the starting size, and West started smallest.' }
+];
+const LESSON_Q = [
+  { label: 'Guided question 1 of 2', head: 'A stock rises 50%, then falls 50%. Its final value is what percent of the original?', ans: 75, ok: '1.5 × 0.5 = 0.75. Down 25% overall.', bad: 'Multiply the multipliers: 1.5 × 0.5.' },
+  { label: 'Guided question 2 of 2 · Watch the question word', head: 'A salary rises 10%, then rises another 20%. By what percent did it increase in total?', ans: 32, ok: '1.1 × 1.2 = 1.32, so +32%. The question asks for the increase, not the final percent.', bad: 'Not 30%. Try 1.1 × 1.2, then subtract 100%.' }
+];
+const SPRINT = [['14 × 6', 84], ['156 ÷ 12', 13], ['25% of 64', 16], ['17 + 48', 65], ['13²', 169], ['91 − 37', 54], ['15 × 12', 180], ['¾ of 96', 72], ['2⁷', 128], ['0.2 × 450', 90], ['144 ÷ 16', 9], ['38 + 57', 95], ['19 × 5', 95], ['40% of 85', 34], ['11 × 13', 143], ['225 ÷ 15', 15], ['6³', 216], ['120% of 50', 60], ['84 − 29', 55], ['16 × 25', 400]];
+const DECKS = [
+  ['Squares 11–25', 12, [['17²', '289'], ['13²', '169'], ['19²', '361'], ['23²', '529'], ['14²', '196'], ['24²', '576']]],
+  ['Cubes', 4, [['6³', '216'], ['7³', '343'], ['4³', '64'], ['9³', '729']]],
+  ['Powers', 6, [['2¹⁰', '1024'], ['3⁵', '243'], ['5⁴', '625'], ['2⁷', '128']]],
+  ['Square roots', 0, [['√2', '1.41'], ['√3', '1.73'], ['√5', '2.24'], ['√196', '14']]],
+  ['Simplifying roots', 3, [['√50', '5√2'], ['√72', '6√2'], ['√48', '4√3'], ['√45', '3√5']]],
+  ['Prime factorisation', 5, [['84', '2²·3·7'], ['126', '2·3²·7'], ['360', '2³·3²·5'], ['91', '7·13']]],
+  ['Prime or not?', 0, [['91', 'Not prime · 7×13'], ['97', 'Prime'], ['51', 'Not prime · 3×17'], ['89', 'Prime']]],
+  ['Fractions → percents', 8, [['1/8', '12.5%'], ['3/8', '37.5%'], ['1/6', '16.7%'], ['5/8', '62.5%']]],
+  ['Percents in your head', 0, [['15% of 80', '12'], ['35% of 60', '21'], ['12.5% of 64', '8'], ['45% of 200', '90']]],
+  ['Exponent rules', 2, [['aᵐ · aⁿ', 'aᵐ⁺ⁿ'], ['(aᵐ)ⁿ', 'aᵐⁿ'], ['a⁻ⁿ', '1/aⁿ'], ['a⁰', '1']]],
+  ['Rules & formulas', 3, [['Work', 'Rate × time'], ['Average', 'Sum ÷ count'], ['a% then b%', 'a + b + ab/100'], ['Divisible by 3', 'Digit sum ÷ 3']]]
+].map(([name, due, cards]) => ({ name, due, cards }));
+const TOPICS = [
+  ['Quant', 'Percents', 1, 71], ['Quant', 'Fractions', 1, 74], ['Quant', 'Ratios & mixtures', 0, 60], ['Quant', 'Rates & work', 0, 49], ['Quant', 'Number properties', 0, 52], ['Quant', 'Exponents & roots', 1, 63], ['Quant', 'Algebra', 0, 58], ['Quant', 'Inequalities & absolute value', -1, null], ['Quant', 'Statistics', 1, 70], ['Quant', 'Counting & probability', -1, null],
+  ['Data Insights', 'Data sufficiency', 1, 61], ['Data Insights', 'Tables', 2, 77],
+  ['Verbal', 'Assumption', 2, 78], ['Verbal', 'Strengthen', 2, 81], ['Verbal', 'Weaken', 1, 69], ['Verbal', 'Inference', 1, 66], ['Verbal', 'Evaluate', 0, 55], ['Verbal', 'Paradox', 1, 72], ['Verbal', 'Reading Comprehension', 2, 80]
+].map(([sec, name, level, acc]) => ({ sec, name, level, acc }));
+const TOPIC_Q = { 'Percents': [0], 'Exponents & roots': [1], 'Number properties': [2], 'Data sufficiency': [2], 'Weaken': [3], 'Tables': [4] };
+const PHASES = [
+  { name: 'Quant foundations', sub: 'Arithmetic without a calculator', tag: 'In progress', topics: [['Mental arithmetic', 2, '3 of 3 lessons · drills daily'], ['Fractions', 1, '2 of 4 lessons'], ['Percents', 1, 'Lesson 3 of 5', true], ['Number properties', 0, '1 of 5 lessons'], ['Exponents & roots', 1, '2 of 4 lessons']] },
+  { name: 'Algebra & word problems', sub: 'Equations, rates, mixtures, counting', tag: 'Up next', topics: [['Algebra', 0, 'Not started'], ['Inequalities & absolute value', -1, 'Not started'], ['Ratios & mixtures', 0, 'Not started'], ['Rates & work', 0, 'Not started'], ['Statistics', 1, 'Not started'], ['Counting & probability', -1, 'Not started']] },
+  { name: 'Verbal', sub: 'Critical Reasoning daily, RC later', tag: 'Daily CR', topics: [['Assumption', 2, '2 of 2 lessons'], ['Strengthen', 2, '2 of 2 lessons'], ['Weaken', 1, '1 of 2 lessons'], ['Inference', 1, '1 of 2 lessons'], ['Evaluate', 0, 'Not started'], ['Paradox', 1, '1 of 1 lessons'], ['Reading Comprehension', 2, '1 of 3 lessons']] },
+  { name: 'Data Insights', sub: 'DS, tables, graphs, multi-source', tag: 'Locked', topics: [['Data sufficiency', 1, 'Unlocks after phase 2'], ['Tables', 2, 'Unlocks after phase 2'], ['Graphics interpretation', -1, 'Unlocks after phase 2'], ['Two-part analysis', -1, 'Unlocks after phase 2'], ['Multi-source reasoning', -1, 'Unlocks after phase 2']] },
+  { name: 'Mixed timed practice', sub: 'Section-length sets at exam pace', tag: 'Locked', topics: [['Mixed Quant sets', -1, 'Locked'], ['Mixed Verbal sets', -1, 'Locked'], ['Mixed DI sets', -1, 'Locked']] },
+  { name: 'Peak & exam', sub: 'Full mocks, review, exam day', tag: 'Locked', topics: [['Full-length mocks', -1, 'Locked'], ['Exam-day strategy', -1, 'Locked']] }
+];
+const M0 = [
+  { topic: 'Percents', title: 'Successive % change', reason: 'Misread the question', box: 1, due: true, qi: 0 },
+  { topic: 'Number properties', title: 'Is x > 0? · DS with x²', reason: "Didn't know how", box: 0, due: true, qi: 2 },
+  { topic: 'Exponents & roots', title: 'Rewrite on base 2', reason: 'Careless slip', box: 2, due: true, qi: 1 },
+  { topic: 'Weaken', title: 'Alternative cause', reason: 'Rushed or too slow', box: 1, due: false, qi: 3 },
+  { topic: 'Tables', title: 'Percent vs raw change', reason: 'Misread the question', box: 3, due: false, qi: 4 },
+  { topic: 'Percents', title: 'Percent of vs percent more', reason: 'Careless slip', box: 0, due: false, qi: 0 }
+];
+const S0 = [{ date: 'Aug 22', label: 'Baseline · Official Practice 1', total: 375, q: 62, v: 73, di: 70 }, { date: 'Sep 19', label: 'Official Practice 2', total: 425, q: 65, v: 75, di: 71 }, { date: 'Oct 17', label: 'Official Practice 3', total: 465, q: 67, v: 76, di: 73 }];
+const QUEUE = [
+  { title: 'Flashcards', meta: 'Squares 11–25 · 12 due', min: 4, verb: 'cards', why: 'Instant squares turn 30-second steps into 3-second ones.' },
+  { title: 'Mental maths sprint', meta: '20 items · last 2:58, beat 2:45', min: 3, verb: 'sprint', why: 'No calculator on Quant. Speed here buys time for DS and CR.' },
+  { title: 'Lesson: Two changes in a row', meta: 'Percents · lesson 3 of 5', min: 8, verb: 'lesson', why: 'Percents are your most common miss. This lesson targets the exact trap.' },
+  { title: 'Mistake review', meta: '3 due · Percents, Exponents, DS', min: 5, verb: 'review', why: 'Three misses are due today. Clean answers move them toward cleared.' },
+  { title: 'Critical Reasoning set', meta: 'Weaken · timed', min: 8, verb: 'set', why: 'Daily CR keeps Verbal climbing while Quant foundations build.' }
+];
+const TOOLS = [
+  ['Successive percent change', 'a + b + ab/100', '+20% then −20% → 20 − 20 − 4 = −4%.'],
+  ['Exponent rules', 'aᵐ·aⁿ = aᵐ⁺ⁿ   (aᵐ)ⁿ = aᵐⁿ', 'Rewrite every term on one base before comparing.'],
+  ['Data sufficiency order', 'AD / BCE', 'Judge (1) alone first. Sufficient → A or D. Not → B, C or E.'],
+  ['Rates & work', 'Work = rate × time', 'Rates add when working together: 1/a + 1/b = 1/t.'],
+  ['Divisibility', '3 and 9: digit sum · 4: last two digits', '6 needs 2 and 3. 12 needs 3 and 4.'],
+  ['Averages', 'Sum = average × count', 'Most average questions are really sum questions.']
+];
+const TAB = { today: 'today', learn: 'learn', lesson: 'learn', practice: 'practice', tests: 'practice', results: 'practice', runner: 'practice', review: 'review', flash: 'review', sprint: 'review', mistakes: 'review', progress: 'progress' };
+const FULL = { lesson: 1, runner: 1, flash: 1, sprint: 1 };
+const ICONS = {
+  today: ['m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10', ''],
+  learn: ['M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z', 'M9 3v15', 'M15 6v15'],
+  practice: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z', 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  review: ['m12 2 10 5-10 5L2 7z', 'm2 17 10 5 10-5', 'm2 12 10 5 10-5'],
+  progress: ['M3 3v18h18', 'm19 9-5 5-4-4-3 3', '']
+};
+
+class Component extends DCLogic {
+  scrollRef = React.createRef();
+  state = {
+    theme: null, device: null, route: 'today', tab: 'today',
+    queue: [true, false, false, false, false], streak: 12,
+    les: { step: 0, input: '', checked: false, ok: false, score: 0, shake: 0 },
+    run: null, inRow: 2,
+    deck: 0, fl: { i: 0, flipped: false, mode: 'learn', input: '', checked: false, ok: false, done: false, known: 0, from: 'review' }, boxes: [5, 4, 2, 1],
+    sp: { i: 0, input: '', sec: 0, flash: null, ans: [], done: false, from: 'review', msg: '' },
+    mistakes: M0, nothingDue: false, noScores: false, scores: S0,
+    form: { date: '', total: '', q: '', v: '', di: '' }, formErr: '', formOk: false, progSec: 0,
+    openPhase: { 0: true, 2: false }, lvl: 0, toolOpen: 0
+  };
+  componentDidMount() {
+    this.t = setInterval(() => this.tick(), 1000);
+    this.kd = e => this.onKey(e);
+    window.addEventListener('keydown', this.kd);
+  }
+  componentWillUnmount() { clearInterval(this.t); window.removeEventListener('keydown', this.kd); clearTimeout(this.ft); }
+  componentDidUpdate(pp, ps) {
+    const s = this.state;
+    const qChanged = s.run && ps.run && s.run.i !== ps.run.i;
+    if ((ps.route !== s.route || qChanged || ps.les.step !== s.les.step) && this.scrollRef.current) this.scrollRef.current.scrollTop = 0;
+  }
+  tick() {
+    const s = this.state;
+    if (s.route === 'runner' && s.run && !s.run.conf) this.setState({ run: { ...s.run, sec: s.run.sec + 1 } });
+    if (s.route === 'sprint' && !s.sp.done) this.setState({ sp: { ...s.sp, sec: s.sp.sec + 1 } });
+  }
+  onKey(e) {
+    if (this.state.route !== 'sprint' || this.state.sp.done) return;
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (/^[0-9]$/.test(e.key)) this.spKey(e.key);
+    else if (e.key === 'Backspace') this.spKey('del');
+    else if (e.key === 'Enter') this.spKey('ok');
+  }
+  go(route, extra) { this.setState({ route, tab: TAB[route], ...(extra || {}) }); }
+  completeQ(n) {
+    const q = [...this.state.queue]; q[n] = true;
+    const all = q.every(Boolean) && !this.state.queue.every(Boolean);
+    this.setState({ queue: q, streak: all ? this.state.streak + 1 : this.state.streak });
+  }
+  startRun(mode, list, over) { this.go('runner', { run: { mode, list, i: 0, sel: null, conf: false, sec: 0, reason: null, alt: false, ...(over || {}) } }); }
+  openDeck(d, from) { this.go('flash', { deck: d, fl: { i: 0, flipped: false, mode: 'learn', input: '', checked: false, ok: false, done: false, known: 0, from: from || 'review' } }); }
+  startSprint(from) { this.go('sprint', { sp: { i: 0, input: '', sec: 0, flash: null, ans: [], done: false, from: from || 'review', msg: '' } }); }
+  openLesson(step) { this.go('lesson', { les: { step: step || 0, input: '', checked: false, ok: false, score: 0, shake: 0 } }); }
+  queueGo(n) {
+    if (n === 0) this.openDeck(0, 'today');
+    else if (n === 1) this.startSprint('today');
+    else if (n === 2) this.openLesson(0);
+    else if (n === 3) this.startRun('mistakes', [1, 2, 0]);
+    else this.startRun('cr', [3]);
+  }
+  spKey(k) {
+    const sp = this.state.sp;
+    if (sp.done) return;
+    if (k === 'del') return this.setState({ sp: { ...sp, input: sp.input.slice(0, -1) } });
+    if (k === 'ok') {
+      if (!sp.input) return;
+      const [p, a] = SPRINT[sp.i]; const ok = Number(sp.input) === a;
+      const ans = [...sp.ans, { p, a, g: sp.input, ok }];
+      const done = sp.i === SPRINT.length - 1;
+      this.setState({ sp: { ...sp, ans, i: done ? sp.i : sp.i + 1, input: '', flash: ok ? 'ok' : 'bad', msg: ok ? 'Right' : p + ' = ' + a, done } });
+      clearTimeout(this.ft); this.ft = setTimeout(() => this.setState({ sp: { ...this.state.sp, flash: null, msg: '' } }), ok ? 350 : 900);
+      return;
+    }
+    if (sp.input.length < 5) this.setState({ sp: { ...sp, input: sp.input + k } });
+  }
+  flashNext(known) {
+    const s = this.state; const d = DECKS[s.deck]; const fl = s.fl; const b = [...s.boxes];
+    if (known) { if (b[0] > 0) { b[0]--; b[1]++; } } else { b[0]++; if (b[1] > 0) b[1]--; }
+    const last = fl.i >= d.cards.length - 1;
+    this.setState({ boxes: b, fl: { ...fl, i: last ? fl.i : fl.i + 1, flipped: false, input: '', checked: false, ok: false, done: last, known: fl.known + (known ? 1 : 0) } });
+  }
+  runNext() {
+    const run = this.state.run;
+    if (run.i < run.list.length - 1) return this.setState({ run: { ...run, i: run.i + 1, sel: null, conf: false, sec: 0, reason: null, alt: false } });
+    if (run.mode === 'mistakes') { this.completeQ(3); this.go('today'); }
+    else if (run.mode === 'cr') { this.completeQ(4); this.go('today'); }
+    else if (run.mode === 'test') this.go('results');
+    else if (run.mode === 'review') this.go('mistakes');
+    else if (run.mode === 'extra') this.go('today');
+    else this.go('practice');
+  }
+  confirm() {
+    const s = this.state; const run = s.run;
+    if (run.sel == null || run.conf) return;
+    const q = QS[run.list[run.i]]; const ok = run.sel === q.ans;
+    if (run.mode === 'test') return this.runNext();
+    this.setState({ run: { ...run, conf: true }, inRow: ok ? s.inRow + 1 : 0 });
+  }
+  setReason(label) {
+    const s = this.state; const run = s.run; const qi = run.list[run.i]; const q = QS[qi];
+    const mistakes = s.mistakes.some(m => m.qi === qi && m.fresh) ? s.mistakes.map(m => (m.qi === qi && m.fresh ? { ...m, reason: label } : m)) : [{ topic: q.topic, title: q.kind + ' · just now', reason: label, box: 0, due: false, qi, fresh: true }, ...s.mistakes];
+    this.setState({ run: { ...run, reason: label }, mistakes });
+  }
+  logScore() {
+    const f = this.state.form; const n = k => parseInt(f[k], 10);
+    if (!f.date.trim()) return this.setState({ formErr: 'Add the exam date.', formOk: false });
+    if (!(n('total') >= 205 && n('total') <= 805)) return this.setState({ formErr: 'Total must be between 205 and 805.', formOk: false });
+    for (const k of ['q', 'v', 'di']) if (!(n(k) >= 60 && n(k) <= 90)) return this.setState({ formErr: 'Section scores must be between 60 and 90.', formOk: false });
+    const base = this.state.noScores ? [] : this.state.scores;
+    const entry = { date: f.date.trim(), label: 'Official Practice ' + (base.length + 1), total: n('total'), q: n('q'), v: n('v'), di: n('di') };
+    this.setState({ scores: [...base, entry], noScores: false, form: { date: '', total: '', q: '', v: '', di: '' }, formErr: '', formOk: true });
+  }
+  jump(key) {
+    const R = { queue: [true, false, false, false, false], nothingDue: false, noScores: false };
+    const J = {
+      today: () => this.go('today', R),
+      todayMid: () => this.go('today', { ...R, queue: [true, true, true, false, false] }),
+      todayDone: () => this.go('today', { ...R, queue: [true, true, true, true, true], streak: 13 }),
+      learn: () => this.go('learn'),
+      lessonRule: () => this.openLesson(0), lessonEx: () => this.openLesson(1), lessonTrap: () => this.openLesson(2), lessonQ: () => this.openLesson(3),
+      lessonWrong: () => this.go('lesson', { les: { step: 3, input: '50', checked: true, ok: false, score: 0, shake: 1 } }),
+      practice: () => this.go('practice'),
+      runQ: () => this.startRun('practice', [0, 1, 2, 3, 4], { sec: 38 }),
+      runOk: () => this.startRun('practice', [0, 1, 2, 3, 4], { sel: 2, conf: true, sec: 72 }),
+      runBad: () => this.startRun('practice', [2, 0, 1, 3, 4], { sel: 0, conf: true, sec: 154 }),
+      runOver: () => this.startRun('practice', [3, 4], { sel: 1, sec: 131 }),
+      runTable: () => this.startRun('practice', [4], { sec: 25 }),
+      tests: () => this.go('tests'),
+      testRun: () => this.startRun('test', [0, 1, 2, 4], { sec: 47 }),
+      results: () => this.go('results'),
+      review: () => this.go('review', { nothingDue: false }),
+      reviewEmpty: () => this.go('review', { nothingDue: true }),
+      flash: () => this.openDeck(0), flashFlip: () => { this.openDeck(0); setTimeout(() => this.setState({ fl: { ...this.state.fl, flipped: true } }), 30); },
+      flashType: () => { this.openDeck(0); setTimeout(() => this.setState({ fl: { ...this.state.fl, mode: 'type' } }), 30); },
+      sprint: () => this.startSprint(),
+      sprintEnd: () => this.go('sprint', { sp: { i: 19, input: '', sec: 161, flash: null, done: true, from: 'review', msg: '', ans: SPRINT.map(([p, a], i) => ({ p, a, ok: ![4, 13, 16].includes(i), g: i === 4 ? '159' : i === 13 ? '32' : i === 16 ? '196' : String(a) })) } }),
+      mistakes: () => this.go('mistakes', { nothingDue: false }),
+      mistakesEmpty: () => this.go('mistakes', { nothingDue: true }),
+      progress: () => this.go('progress', { noScores: false }),
+      progressEmpty: () => this.go('progress', { noScores: true })
+    };
+    J[key]();
+  }
+
+  renderVals() {
+    const s = this.state; const p = this.props;
+    const theme = s.theme ?? (p.dark ? 'dark' : 'light');
+    const device = s.device ?? (p.desktop ? 'desktop' : 'mobile');
+    const desk = device === 'desktop';
+    const target = p.target ?? 705;
+    const frame = desk ? { w: '1280px', h: '820px', pad: '0', radius: '10px', innerRadius: '10px', bg: '#0d0e0f' } : { w: '410px', h: '864px', pad: '10px', radius: '52px', innerRadius: '42px', bg: '#0d0e0f' };
+
+    const mistakes = s.nothingDue ? s.mistakes.map(m => ({ ...m, due: false })) : s.mistakes;
+    const dueList = mistakes.filter(m => m.due);
+    const tabs = ['today', 'learn', 'practice', 'review', 'progress'].map(k => ({
+      label: k[0].toUpperCase() + k.slice(1), d1: ICONS[k][0], d2: ICONS[k][1], d3: ICONS[k][2],
+      color: s.tab === k ? 'var(--color-accent-700)' : 'var(--muted)', bar: s.tab === k ? 'var(--color-accent)' : 'transparent',
+      deskBg: s.tab === k ? 'var(--color-accent-100)' : 'transparent',
+      badge: k === 'review' && dueList.length ? String(dueList.length) : '',
+      onClick: () => this.go(k)
+    }));
+    const r = {}; Object.keys(TAB).forEach(k => (r[k] = s.route === k));
+
+    const jg = (name, items) => ({ name, items: items.map(([label, key]) => ({ label, onClick: () => this.jump(key) })) });
+    const jumpGroups = [
+      jg('Today', [['Start of day', 'today'], ['Mid-session', 'todayMid'], ['Session complete', 'todayDone']]),
+      jg('Learn', [['Study path', 'learn'], ['Lesson · rule', 'lessonRule'], ['Lesson · worked example', 'lessonEx'], ['Lesson · trap', 'lessonTrap'], ['Lesson · guided question', 'lessonQ'], ['Lesson · wrong answer', 'lessonWrong']]),
+      jg('Practice', [['Topics & toolkit', 'practice'], ['Runner · unanswered', 'runQ'], ['Runner · correct', 'runOk'], ['Runner · wrong (DS)', 'runBad'], ['Runner · CR, over time', 'runOver'], ['Runner · data table', 'runTable'], ['Tests menu', 'tests'], ['Test in progress', 'testRun'], ['Test results', 'results']]),
+      jg('Review', [['Review hub', 'review'], ['Nothing due (empty)', 'reviewEmpty'], ['Flashcard · front', 'flash'], ['Flashcard · flipped', 'flashFlip'], ['Flashcard · typed', 'flashType'], ['Sprint', 'sprint'], ['Sprint · end', 'sprintEnd'], ['Mistakes', 'mistakes'], ['Mistakes · none due', 'mistakesEmpty']]),
+      jg('Progress', [['Score history', 'progress'], ['No scores yet (empty)', 'progressEmpty']])
+    ];
+
+    // Today
+    const lastOfficial = (s.noScores ? null : s.scores[s.scores.length - 1]);
+    const estTotal = lastOfficial ? lastOfficial.total + 10 : 455;
+    const pc = v => Math.max(0, Math.min(100, ((v - 205) / 600) * 100)) + '%';
+    const secBase = [['Quant', 68, 62], ['Verbal', 76, 73], ['Data Insights', 73, 70]];
+    const est = {
+      total: estTotal, toGo: Math.max(0, target - estTotal), pct: pc(estTotal), goalPct: pc(target), basePct: pc(375),
+      sections: secBase.map(([name, val, base], i) => ({ name, val, delta: '+' + (val - base), pct: ((val - 60) / 30) * 100 + '%', border: i ? BT : '0', padL: i ? '12px' : '0' }))
+    };
+    const nextIdx = s.queue.findIndex(d => !d);
+    const allDone = nextIdx === -1;
+    const nq = QUEUE[allDone ? 0 : nextIdx];
+    const next = { ...nq, onStart: () => this.queueGo(nextIdx) };
+    const queueList = QUEUE.map((q, i) => {
+      const done = s.queue[i]; const cur = i === nextIdx;
+      return { n: i + 1, title: q.title, meta: q.meta, min: q.min, done, notDone: !done, current: cur, onClick: () => this.queueGo(i),
+        topBorder: i ? BT : '0', bg: cur ? 'color-mix(in srgb,var(--hl) 28%,var(--color-bg))' : 'transparent',
+        numBorder: done ? 'var(--ok)' : cur ? 'var(--color-text)' : 'var(--color-divider)', numBg: done ? 'var(--ok)' : 'transparent', numInk: done ? 'var(--color-bg)' : 'var(--color-text)',
+        titleColor: done ? 'var(--muted)' : 'var(--color-text)', deco: done ? 'line-through' : 'none' };
+    });
+
+    // Learn
+    const phases = PHASES.map((ph, i) => {
+      const open = !!s.openPhase[i];
+      const tagMap = { 'In progress': ['var(--hl)', 'var(--hl-ink)'], 'Daily CR': ['var(--color-accent-100)', 'var(--color-accent-800)'], 'Up next': ['var(--color-surface)', 'var(--color-text)'], 'Locked': ['transparent', 'var(--muted)'] };
+      return { num: String(i + 1).padStart(2, '0'), name: ph.name, sub: ph.sub, tag: ph.tag, tagBg: tagMap[ph.tag][0], tagInk: tagMap[ph.tag][1], open,
+        border: i === 0 ? 'var(--color-accent)' : 'var(--color-divider)', numColor: ph.tag === 'Locked' ? 'var(--muted)' : 'var(--color-accent-700)',
+        onToggle: () => this.setState({ openPhase: { ...s.openPhase, [i]: !open } }),
+        topics: ph.topics.map(([name, level, status, current]) => ({ name, levelName: lvName(level), status, current: !!current, segs: segs(level),
+          border: current ? 'var(--color-accent)' : 'var(--color-divider)', bg: current ? 'var(--color-accent-100)' : 'var(--color-bg)' })) };
+    });
+    const lessonList = [['✓', 'Percent basics', 'var(--muted)'], ['✓', 'Percent change', 'var(--muted)'], ['→', 'Two changes in a row', 'var(--color-text)'], ['4', 'Watch the question word', 'var(--muted)'], ['5', 'Reverse percents', 'var(--muted)']].map(([mark, name, color]) => ({ mark, name, color }));
+    const levelLegend = LV.map((name, i) => ({ name, op: 0.25 + i * 0.1875 }));
+
+    // Lesson
+    const L = s.les; const stepCount = 5; const isQ = L.step === 3 || L.step === 4; const gq = isQ ? LESSON_Q[L.step - 3] : null;
+    const les = {
+      count: L.step >= 5 ? 'Done' : (L.step + 1) + ' / ' + stepCount,
+      bars: [0, 1, 2, 3, 4].map(i => ({ bg: i < L.step || L.step >= 5 ? 'var(--color-accent)' : i === L.step ? 'var(--color-accent-400)' : 'var(--color-divider)' })),
+      isRule: L.step === 0, isExample: L.step === 1, isTrap: L.step === 2, isQ, isDone: L.step >= 5,
+      label: gq?.label, head: gq?.head, input: L.input, checked: L.checked, score: L.score + ' of 2',
+      inputBorder: !L.checked ? 'var(--color-divider)' : L.ok ? 'var(--ok)' : 'var(--bad)', anim: L.checked && !L.ok ? 'shake .3s' : 'none',
+      fbBg: L.ok ? 'var(--ok-bg)' : 'var(--bad-bg)', fbBorder: L.ok ? 'var(--ok)' : 'var(--bad)', fbTitle: L.ok ? 'Right.' : 'Not yet.', fbMsg: gq ? (L.ok ? gq.ok : gq.bad) : '',
+      onInput: e => this.setState({ les: { ...L, input: e.target.value, checked: false } }),
+      onKey: e => { if (e.key === 'Enter') les.onNext(); },
+      canBack: L.step > 0 && L.step < 5,
+      onBack: () => this.setState({ les: { ...L, step: L.step - 1, input: '', checked: false, ok: false } }),
+      onClose: () => this.go('learn'),
+      onHome: () => this.go('today'),
+      nextOp: isQ && !L.input ? 0.45 : 1,
+      nextLabel: L.step >= 5 ? 'Start adaptive drill' : isQ && !L.checked ? 'Check' : isQ && !L.ok ? 'Try again' : L.step === 4 ? 'Finish lesson' : 'Continue',
+      onNext: () => {
+        const L2 = this.state.les;
+        if (L2.step >= 5) return this.startRun('practice', [0, 1]);
+        const q2 = (L2.step === 3 || L2.step === 4) ? LESSON_Q[L2.step - 3] : null;
+        if (q2) {
+          if (!L2.input) return;
+          if (!L2.checked) { const ok = Number(L2.input) === q2.ans; return this.setState({ les: { ...L2, checked: true, ok, score: L2.score + (ok ? 1 : 0) } }); }
+          if (!L2.ok) return this.setState({ les: { ...L2, checked: false, input: '' } });
+        }
+        if (L2.step === 4) this.completeQ(2);
+        this.setState({ les: { ...this.state.les, step: L2.step + 1, input: '', checked: false, ok: false } });
+      }
+    };
+    const exampleLines = [['1', '+10% → ×1.1, twice'], ['2', '1.1 × 1.1 = 1.21'], ['3', 'Total change = +21%, not +20%']].map(([n, t]) => ({ n, t }));
+
+    // Practice
+    const lvls = ['Auto', 'Foundation', 'Building', 'Solid', 'Strong', 'Elite'];
+    const lvlOpts = lvls.map((name, i) => ({ name, onClick: () => this.setState({ lvl: i }), bg: s.lvl === i ? 'var(--color-accent)' : 'transparent', ink: s.lvl === i ? 'var(--color-bg)' : 'var(--color-text)', bl: i ? BT : '0' }));
+    const lvlNote = s.lvl === 0 ? 'Moves up after 3 right in a row' : 'Fixed at ' + LV[s.lvl - 1];
+    const topicGroups = ['Quant', 'Data Insights', 'Verbal'].map(sec => ({ name: sec, topics: TOPICS.filter(t => t.sec === sec).map(t => ({ name: t.name, segs: segs(t.level), levelName: lvName(t.level), accText: t.acc == null ? '—' : t.acc + '%', onClick: () => this.startRun('practice', TOPIC_Q[t.name] || [0, 1, 2, 3, 4]) })) }));
+    const tools = TOOLS.map(([name, rule, note], i) => ({ name, rule, note, open: s.toolOpen === i, sign: s.toolOpen === i ? '−' : '+', bt: i ? BT : '0', onClick: () => this.setState({ toolOpen: s.toolOpen === i ? -1 : i }) }));
+
+    // Tests
+    const testMenu = [
+      { name: 'Quant', short: 'Quant', meta: '21 questions · 45 min · adaptive', last: 'Last 66', btnClass: 'btn-primary', onClick: () => this.startRun('test', [0, 1, 2, 4]) },
+      { name: 'Data Insights', short: 'DI', meta: '20 questions · 45 min · adaptive', last: 'Last 71', btnClass: 'btn-secondary', onClick: () => this.startRun('test', [4, 2, 0, 1]) }
+    ];
+    const pastTests = [['Oct 14', 'Quant', '66', '13/21'], ['Oct 7', 'Data Insights', '71', '12/20'], ['Sep 30', 'Quant', '63', '11/21']].map(([date, sec, score, right]) => ({ date, sec, score, right }));
+    const resRows = [['Number properties', 1, 3], ['Rates & work', 2, 4], ['Exponents & roots', 2, 3], ['Percents', 3, 4], ['Algebra', 3, 4], ['Statistics', 3, 3]].map(([name, a, b], i) => { const f = a / b; return { name, txt: a + '/' + b, pct: f * 100 + '%', color: f < 0.5 ? 'var(--bad)' : f < 0.8 ? 'var(--warn)' : 'var(--ok)', bt: i ? BT : '0' }; });
+
+    // Runner
+    let rv = {};
+    if (s.run) {
+      const run = s.run; const q = QS[run.list[run.i]]; const test = run.mode === 'test'; const conf = run.conf; const correct = conf && run.sel === q.ans;
+      const over = run.sec > 120;
+      const titles = { practice: 'Practice drill', mistakes: 'Mistake review', cr: 'Critical Reasoning set', test: 'Quant test · adaptive', review: 'Mistake review', extra: 'Mixed drill' };
+      const total = test ? 21 : run.list.length;
+      rv = {
+        title: titles[run.mode], count: 'Question ' + (run.i + 1) + ' of ' + total, pct: ((run.i + (conf ? 1 : 0)) / total) * 100 + '%',
+        timer: fmt(run.sec), timerColor: over ? 'var(--bad)' : 'var(--color-text)', timerSub: over ? 'var(--bad)' : 'var(--muted)', timerBorder: over ? 'var(--bad)' : 'var(--color-divider)', timerBg: over ? 'var(--bad-bg)' : 'var(--color-bg)',
+        topic: q.topic, kind: q.kind, diff: q.diff, stem: q.stem.map(x => ({ t: x.t, s: x.s || '' })),
+        hasPassage: !!q.passage, passage: q.passage || '', hasTable: !!q.table,
+        thead: q.table ? q.table.head.map(c => ({ c })) : [], trows: q.table ? q.table.rows.map(rw => ({ cells: rw.map(c => ({ c })) })) : [],
+        isDS: !!q.st, stmts: q.st ? q.st.map((x, i) => ({ n: '(' + (i + 1) + ')', t: x.t, s: x.s, t2: x.t2 })) : [],
+        choices: q.choices.map((text, i) => {
+          const sel = run.sel === i; const isAns = i === q.ans;
+          let border = 'var(--color-divider)', bg = 'var(--color-bg)', bB = 'var(--color-divider)', bBg = 'transparent', bInk = 'var(--color-text)', op = 1, anim = 'none';
+          if (!conf && sel) { border = 'var(--color-accent)'; bg = 'var(--color-accent-100)'; bB = 'var(--color-accent)'; bBg = 'var(--color-accent)'; bInk = 'var(--color-bg)'; }
+          if (conf) {
+            if (isAns) { border = 'var(--ok)'; bg = 'var(--ok-bg)'; bB = 'var(--ok)'; bBg = 'var(--ok)'; bInk = 'var(--color-bg)'; anim = sel ? 'pop .4s ease-out' : 'none'; }
+            else if (sel) { border = 'var(--bad)'; bg = 'var(--bad-bg)'; bB = 'var(--bad)'; bBg = 'var(--bad)'; bInk = 'var(--color-bg)'; anim = 'shake .3s'; }
+            else op = 0.5;
+          }
+          return { letter: LET[i], text, border, bg, badgeBorder: bB, badgeBg: bBg, badgeInk: bInk, op, anim, cursor: conf ? 'default' : 'pointer', isOk: conf && isAns, isBad: conf && sel && !isAns,
+            onClick: () => { if (!this.state.run.conf) this.setState({ run: { ...this.state.run, sel: i } }); } };
+        }),
+        showConfirm: !conf, confirmOp: run.sel == null ? 0.45 : 1, confirmLabel: test ? (run.i === run.list.length - 1 ? 'Confirm & finish' : 'Confirm & next') : 'Confirm',
+        onConfirm: () => this.confirm(),
+        showSol: conf && !test, correct, wrong: conf && !correct, ansLetter: LET[q.ans],
+        okNote: over ? 'Right, but over target. Try the fastest method below.' : 'Under the 2:00 target.',
+        inRow: s.inRow >= 2 ? s.inRow + ' in a row' : '',
+        steps: q.steps.map((t, i) => ({ n: i + 1, t })), fast: q.fast, alt: q.alt, altOpen: run.alt, altLabel: run.alt ? 'Hide other way' : 'Explain it another way',
+        onAlt: () => this.setState({ run: { ...this.state.run, alt: !this.state.run.alt } }),
+        reasons: ["Didn't know how", 'Careless slip', 'Misread the question', 'Rushed or too slow'].map(label => { const on = run.reason === label; return { label, onClick: () => this.setReason(label), border: on ? 'var(--color-accent)' : 'var(--color-divider)', bg: on ? 'var(--color-accent)' : 'var(--color-bg)', ink: on ? 'var(--color-bg)' : 'var(--color-text)' }; }),
+        reasonSaved: !!run.reason,
+        nextLabel: run.i < run.list.length - 1 ? 'Next question' : 'Finish',
+        onNext: () => this.runNext(),
+        onClose: () => this.go(test ? 'tests' : run.mode === 'practice' ? 'practice' : run.mode === 'review' ? 'mistakes' : 'today')
+      };
+    }
+
+    // Review / flash
+    const decks = DECKS.map((d, i) => { const due = s.nothingDue ? 0 : d.due; return { name: d.name, sample: d.cards[0][0].length > 5 ? d.cards[0][0].slice(0, 4) : d.cards[0][0], sub: d.cards.length + ' cards · box 1–4', dueText: due ? String(due) : '✓', dueColor: due ? 'var(--color-accent-700)' : 'var(--ok)', bt: i ? BT : '0', onClick: () => this.openDeck(i) }; });
+    const flashDueTotal = s.nothingDue ? 0 : DECKS.reduce((a, d) => a + d.due, 0);
+    const D = DECKS[s.deck]; const F = s.fl; const card = D.cards[Math.min(F.i, D.cards.length - 1)];
+    const isType = F.mode === 'type';
+    const typedOk = v => v.replace(/\s|%/g, '').toLowerCase() === card[1].replace(/\s|%/g, '').toLowerCase();
+    const fv = {
+      deck: D.name, count: 'Card ' + (F.i + 1) + ' of ' + D.cards.length, pct: ((F.i + (F.done ? 1 : 0)) / D.cards.length) * 100 + '%',
+      front: card[0], back: card[1], frontSize: card[0].length > 6 ? '44px' : '96px', backSize: card[1].length > 6 ? '40px' : '88px',
+      rot: F.flipped ? 'rotateY(180deg)' : 'none', hint: isType ? 'Type the answer below' : 'Tap to flip',
+      onFlip: () => { if (!isType || this.state.fl.checked) this.setState({ fl: { ...this.state.fl, flipped: !this.state.fl.flipped } }); },
+      modes: [['Learn', 'learn'], ['Type', 'type']].map(([name, m]) => ({ name, bg: F.mode === m ? 'var(--color-accent)' : 'transparent', ink: F.mode === m ? 'var(--color-bg)' : 'var(--color-text)', onClick: () => this.setState({ fl: { ...this.state.fl, mode: m, flipped: false, input: '', checked: false } }) })),
+      isType, input: F.input, checked: F.checked,
+      onInput: e => this.setState({ fl: { ...this.state.fl, input: e.target.value, checked: false } }),
+      onKey: e => { if (e.key === 'Enter') fv.onMain(); },
+      inputBorder: !F.checked ? 'var(--color-divider)' : F.ok ? 'var(--ok)' : 'var(--bad)', anim: F.checked && !F.ok ? 'shake .3s' : 'none',
+      fbColor: F.ok ? 'var(--ok)' : 'var(--bad)', fbText: F.ok ? 'Right · ' + card[1] : 'Answer: ' + card[1],
+      boxes: ['1 day', '3 days', '7 days', '14 days'].map((dd, i) => ({ label: 'Box ' + (i + 1) + ' · ' + dd, n: s.boxes[i], border: i === 0 && !F.done ? 'var(--color-accent)' : 'var(--color-divider)' })),
+      showGrade: !isType && F.flipped, showMain: isType || !F.flipped, nextDays: '3 days',
+      mainLabel: isType ? (F.checked ? 'Next card' : 'Check') : 'Show answer',
+      onMain: () => {
+        const f2 = this.state.fl;
+        if (f2.mode !== 'type') return this.setState({ fl: { ...f2, flipped: true } });
+        if (!f2.checked) { if (!f2.input.trim()) return; return this.setState({ fl: { ...f2, checked: true, ok: typedOk(f2.input), flipped: true } }); }
+        this.flashNext(f2.ok);
+      },
+      onAgain: () => this.flashNext(false), onGot: () => this.flashNext(true),
+      done: F.done, notDone: !F.done, known: F.known, total: D.cards.length,
+      finishLabel: F.from === 'today' ? 'Back to Today' : 'Back to Review',
+      onFinish: () => { if (this.state.fl.from === 'today') { this.completeQ(0); this.go('today'); } else this.go('review'); },
+      onClose: () => this.go(F.from === 'today' ? 'today' : 'review')
+    };
+
+    // Sprint
+    const P = s.sp; const right = P.ans.filter(a => a.ok).length;
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'].map(k => ({ label: k === 'del' ? '⌫' : k === 'ok' ? '✓' : k, onClick: () => this.spKey(k), bg: k === 'ok' ? 'var(--color-accent)' : 'var(--color-bg)', ink: k === 'ok' ? 'var(--color-bg)' : 'var(--color-text)', border: k === 'ok' ? 'var(--color-accent)' : 'var(--color-divider)' }));
+    const missed = P.ans.filter(a => !a.ok).map(a => ({ p: a.p, a: a.a, g: a.g }));
+    const sv = {
+      count: P.done ? 'Finished' : 'Item ' + (P.i + 1) + ' of 20', pct: (P.ans.length / 20) * 100 + '%', timer: fmt(P.sec),
+      problem: SPRINT[P.i][0], input: P.input || ' ', active: !P.done, done: P.done, keys,
+      flashBg: P.flash === 'ok' ? 'var(--ok-bg)' : P.flash === 'bad' ? 'var(--bad-bg)' : 'var(--color-bg)',
+      flashBorder: P.flash === 'ok' ? 'var(--ok)' : P.flash === 'bad' ? 'var(--bad)' : 'var(--color-divider)',
+      lineColor: P.input ? 'var(--color-accent)' : 'var(--color-divider)', msg: P.msg, msgColor: P.flash === 'ok' ? 'var(--ok)' : 'var(--bad)',
+      score: right + '/20', avg: (P.ans.length ? Math.round(P.sec / P.ans.length) : 0) + 's', missed, noMiss: P.done && !missed.length,
+      onAgain: () => this.startSprint(P.from), finishLabel: P.from === 'today' ? 'Back to Today' : 'Done',
+      onFinish: () => { if (P.from === 'today') { this.completeQ(1); this.go('today'); } else this.go('review'); },
+      onClose: () => this.go(P.from === 'today' ? 'today' : 'review')
+    };
+
+    // Mistakes
+    const groupsMap = {}; mistakes.forEach(m => { (groupsMap[m.topic] = groupsMap[m.topic] || []).push(m); });
+    const DAYS = [1, 3, 7, 14];
+    const mv = {
+      dueCount: dueList.length, openCount: mistakes.length, hasDue: dueList.length > 0, noDue: dueList.length === 0, dueMin: Math.max(2, dueList.length * 2),
+      counters: [['Open', mistakes.length, 'var(--color-text)'], ['Due now', dueList.length, dueList.length ? 'var(--color-accent-700)' : 'var(--ok)'], ['Cleared', 14, 'var(--ok)']].map(([name, n, color], i) => ({ name, n, color, bl: i ? BT : '0' })),
+      due: dueList.map((m, i) => ({ title: m.title, topic: m.topic, reason: m.reason, step: 'Review ' + (m.box + 1) + ' of 4', bt: i ? BT : '0' })),
+      onReview: () => this.startRun('review', dueList.map(m => m.qi)),
+      groups: Object.keys(groupsMap).map(topic => ({ topic, n: groupsMap[topic].length, items: groupsMap[topic].map(m => ({ title: m.title, reason: m.reason, next: m.due ? 'Due now' : 'Back in ' + DAYS[m.box] + (DAYS[m.box] === 1 ? ' day' : ' days'), nextColor: m.due ? 'var(--color-accent-700)' : 'var(--muted)', dots: [0, 1, 2, 3].map(j => ({ bg: j < m.box ? 'var(--ok)' : 'var(--color-divider)' })) })) }))
+    };
+
+    // Progress
+    const sc = s.noScores ? [] : s.scores;
+    const Y = v => 10 + ((760 - v) / 460) * 150;
+    const X = i => (sc.length === 1 ? 184 : 54 + (i * 260) / (sc.length - 1));
+    const secName = ['Quant', 'Verbal', 'Data Insights'][s.progSec];
+    const pv = {
+      has: sc.length > 0, empty: sc.length === 0,
+      summary: sc.length ? (sc[sc.length - 1].total - sc[0].total >= 0 ? '+' : '') + (sc[sc.length - 1].total - sc[0].total) + ' since ' + sc[0].date : '',
+      gridLines: [400, 500, 600, 700].map(v => ({ v, y: Y(v), top: (Y(v) / 190) * 100 + '%', right: ((340 - 28) / 340) * 100 + '%' })), ty: Y(target), tTop: (Y(target) / 190) * 100 + '%',
+      pts: sc.map((x, i) => X(i) + ',' + Y(x.total)).join(' '),
+      dots: sc.map((x, i) => ({ left: (X(i) / 340) * 100 + '%', top: (Y(x.total) / 190) * 100 + '%', v: x.total, date: x.date })),
+      rows: sc.slice().reverse().map((x, i) => ({ ...x, bt: i ? BT : '0' })),
+      weakest: TOPICS.filter(t => t.acc != null).sort((a, b) => a.acc - b.acc).slice(0, 3).map(t => ({ name: t.name, sec: t.sec, acc: t.acc + '%', levelName: lvName(t.level), onClick: () => this.startRun('practice', TOPIC_Q[t.name] || [0, 1, 2, 3, 4]) })),
+      secTabs: ['Quant', 'Verbal', 'DI'].map((name, i) => ({ name, bg: s.progSec === i ? 'var(--color-accent)' : 'transparent', ink: s.progSec === i ? 'var(--color-bg)' : 'var(--color-text)', onClick: () => this.setState({ progSec: i }) })),
+      table: TOPICS.filter(t => t.sec === secName).sort((a, b) => (a.acc ?? 999) - (b.acc ?? 999)).map(t => ({ name: t.name, segs: segs(t.level), levelName: lvName(t.level), accText: t.acc == null ? '—' : t.acc + '%', color: t.acc == null ? 'var(--muted)' : t.acc < 60 ? 'var(--bad)' : t.acc < 70 ? 'var(--warn)' : 'var(--color-text)' }))
+    };
+    const formOn = {}; ['date', 'total', 'q', 'v', 'di'].forEach(k => (formOn[k] = e => this.setState({ form: { ...this.state.form, [k]: e.target.value }, formErr: '', formOk: false })));
+
+    return {
+      theme, isDesktop: desk, isMobile: !desk, frame, target, route: s.route, scrollRef: this.scrollRef,
+      contentMax: desk ? '1040px' : 'none', contentPad: desk ? '32px 40px 48px' : (FULL[s.route] ? '8px 18px 24px' : '14px 18px 28px'),
+      showTabs: !desk && !FULL[s.route], tabs, r, jumpGroups,
+      themeLabel: theme === 'dark' ? 'Light mode' : 'Dark mode', deviceLabel: desk ? 'Mobile' : 'Desktop',
+      toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      toggleDevice: () => this.setState({ device: desk ? 'mobile' : 'desktop' }),
+      streak: s.streak, est, next, allDone, notAllDone: !allDone, queueList, doneCount: s.queue.filter(Boolean).length,
+      startExtra: () => this.startRun('extra', [1, 2, 4, 0, 3]),
+      phases, lessonList, levelLegend, openLesson: () => this.openLesson(0), les, exampleLines,
+      lvlOpts, lvlNote, topicGroups, tools, goTests: () => this.go('tests'), goPractice: () => this.go('practice'),
+      testMenu, pastTests, resRows, rv,
+      decks, flashDueTotal, nothingDue: s.nothingDue, openSprint: () => this.startSprint('review'), goMistakes: () => this.go('mistakes'), goReview: () => this.go('review'), goProgress: () => this.go('progress'),
+      fv, sv, mv, intervals: ['1d', '3d', '7d', '14d'], pv, form: s.form, formOn, formErr: s.formErr, formOk: s.formOk, onLog: () => this.logScore()
+    };
+  }
+}
+</script>
+</body>
+</html>
