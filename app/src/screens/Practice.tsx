@@ -1,4 +1,5 @@
-import { LEVELS, TOOLS, TOPICS, levelName, topicQuestions, type Section } from '../data';
+import { LEVELS, TOOLS, TOPICS, levelName, type Section } from '../data';
+import { topicDrill } from '../content/select';
 import { useApp } from '../store';
 import { BT, ChevronRight, Corners, H2, Kicker, LevelSegments, PageHeader, Svg, heading, rowTop, tabular } from '../components/ui';
 
@@ -7,6 +8,7 @@ const SECTIONS: Section[] = ['Quant', 'Data Insights', 'Verbal'];
 
 export function Practice() {
   const { s, a } = useApp();
+  const lastTest = s.tests[s.tests.length - 1];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader kicker="Drills · tests · toolkit" title="Practice" />
@@ -22,7 +24,7 @@ export function Practice() {
         </span>
         <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <span style={{ ...heading, fontSize: 21 }}>Adaptive tests</span>
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Timed section tests · last: Quant 66 on Oct 14</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Timed section tests · {lastTest ? `last: ${lastTest.section} ${lastTest.score} on ${lastTest.date}` : 'none taken yet'}</span>
         </span>
         <ChevronRight />
       </button>
@@ -52,7 +54,7 @@ export function Practice() {
               <button
                 key={t.name}
                 className="hover-tile press-tile"
-                onClick={() => a.startRun('practice', topicQuestions(t.name))}
+                onClick={() => a.startRun('practice', topicDrill(t.name, t.sec))}
                 style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer', minHeight: 92 }}
               >
                 <span style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.25, flex: 1 }}>{t.name}</span>

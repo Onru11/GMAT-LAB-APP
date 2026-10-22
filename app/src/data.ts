@@ -1,35 +1,8 @@
 // Sample content for the prototype build. Everything here is fixed demo data
 // lifted from the Claude Design handoff (project/GMAT Lab.dc.html).
 
-export type Section = 'Quant' | 'Data Insights' | 'Verbal';
-
-export interface StemPart {
-  t: string;
-  /** Superscript that follows `t`. */
-  s?: string;
-}
-
-export interface DsStatement {
-  t: string;
-  s: string;
-  t2: string;
-}
-
-export interface Question {
-  topic: string;
-  kind: string;
-  diff: string;
-  stem: StemPart[];
-  /** Data Sufficiency statements (1) and (2). */
-  st?: DsStatement[];
-  passage?: string;
-  table?: { head: string[]; rows: string[][] };
-  choices: string[];
-  ans: number;
-  steps: string[];
-  fast: string;
-  alt: string;
-}
+import type { Section } from './content/questions';
+export type { Section };
 
 export interface LessonQuestion {
   label: string;
@@ -67,10 +40,8 @@ export interface Mistake {
   /** Leitner step 0–3; maps onto MISTAKE_DAYS. */
   box: number;
   due: boolean;
-  /** Index into QUESTIONS. */
-  qi: number;
-  /** Added during this session from the runner. */
-  fresh?: boolean;
+  /** Question id in the bank. */
+  qid: string;
 }
 
 export interface Score {
@@ -95,109 +66,6 @@ export const levelName = (l: number) => (l < 0 ? 'Not started' : LEVELS[l]);
 export const LETTERS = 'ABCDE';
 export const MISTAKE_DAYS = [1, 3, 7, 14];
 export const MISS_REASONS = ["Didn't know how", 'Careless slip', 'Misread the question', 'Rushed or too slow'];
-
-const DS_CHOICES = [
-  'Statement (1) ALONE is sufficient, but statement (2) alone is not sufficient.',
-  'Statement (2) ALONE is sufficient, but statement (1) alone is not sufficient.',
-  'BOTH statements TOGETHER are sufficient, but NEITHER statement ALONE is sufficient.',
-  'EACH statement ALONE is sufficient.',
-  'Statements (1) and (2) TOGETHER are NOT sufficient.',
-];
-
-export const QUESTIONS: Question[] = [
-  {
-    topic: 'Percents',
-    kind: 'Problem solving',
-    diff: 'Solid ~600',
-    stem: [{ t: "A jacket's price is raised by 20%, and then the new price is cut by 20%. The final price is what percent of the original price?" }],
-    choices: ['100%', '98%', '96%', '94%', '80%'],
-    ans: 2,
-    steps: [
-      'Turn each change into a multiplier: +20% is ×1.2, −20% is ×0.8.',
-      'Multiply the multipliers: 1.2 × 0.8 = 0.96.',
-      'The final price is 96% of the original.',
-    ],
-    fast: 'Successive change: a + b + ab/100 = 20 − 20 − 4 = −4%. So 96%. Ten seconds, no multiplying.',
-    alt: 'Start from $100. Up 20% gives $120. 20% of $120 is $24, so it falls to $96. The cut acts on a bigger base than the raise did.',
-  },
-  {
-    topic: 'Exponents & roots',
-    kind: 'Problem solving',
-    diff: 'Building',
-    stem: [{ t: 'If 2', s: 'x' }, { t: ' · 4', s: '3' }, { t: ' = 2', s: '10' }, { t: ', what is the value of x?' }],
-    choices: ['2', '3', '4', '5', '7'],
-    ans: 2,
-    steps: ['Rewrite 4 as 2²: 4³ = (2²)³ = 2⁶.', 'Combine: 2ˣ · 2⁶ = 2ˣ⁺⁶.', 'Set the exponents equal: x + 6 = 10, so x = 4.'],
-    fast: 'Put every term on the same base, then compare exponents. Never compute 4³ = 64.',
-    alt: 'Think in doublings. 4³ = 64 is six doublings of 1. 2¹⁰ needs ten, so 2ˣ supplies the other four.',
-  },
-  {
-    topic: 'Number properties',
-    kind: 'Data sufficiency',
-    diff: 'Solid ~600',
-    stem: [{ t: 'Is x > 0?' }],
-    st: [
-      { t: 'x', s: '2', t2: ' = 9' },
-      { t: 'x', s: '3', t2: ' = 27' },
-    ],
-    choices: DS_CHOICES,
-    ans: 1,
-    steps: [
-      '(1) x² = 9 gives x = 3 or x = −3. One yes, one no: not sufficient.',
-      '(2) x³ = 27 gives only x = 3. Odd powers keep the sign: sufficient.',
-      '(2) alone works and (1) alone does not, so B.',
-    ],
-    fast: 'Even powers hide the sign; odd powers keep it. Spot that and you are done in 20 seconds.',
-    alt: 'Test numbers. For (1), try 3 and −3: both square to 9 but give different answers. For (2), only 3 cubes to 27, because (−3)³ = −27.',
-  },
-  {
-    topic: 'Weaken',
-    kind: 'Critical reasoning',
-    diff: 'Strong ~655',
-    passage:
-      "Last year, Riverton's council installed brighter streetlights along Main Street. Since then, reported nighttime thefts on Main Street have fallen by 30 percent. The council concludes that brighter lighting deters theft and plans to install it citywide.",
-    stem: [{ t: "Which of the following, if true, most seriously weakens the council's conclusion?" }],
-    choices: [
-      'Residents of several other streets have asked for brighter lights.',
-      'The new lights use less electricity than the ones they replaced.',
-      'Last year a police substation opened on Main Street and began nightly foot patrols.',
-      'Daytime thefts on Main Street did not change over the same period.',
-      'Brighter lighting has reduced theft in some other cities.',
-    ],
-    ans: 2,
-    steps: [
-      'Conclusion: the lights caused the drop in theft.',
-      'To weaken a causal claim, find another cause that fits the same time and place.',
-      '(C) gives one: nightly patrols started on Main Street in the same year.',
-    ],
-    fast: 'Causal conclusion? Hunt for an alternative cause first. It is the most common right answer on Weaken.',
-    alt: 'Imagine the council is wrong. What else could explain 30% fewer thefts on that street that year? Nightly patrols are the obvious rival explanation.',
-  },
-  {
-    topic: 'Tables',
-    kind: 'Data Insights · Table',
-    diff: 'Building',
-    table: {
-      head: ['Region', 'Q1 sales', 'Q2 sales'],
-      rows: [
-        ['North', '120', '150'],
-        ['South', '80', '92'],
-        ['East', '200', '210'],
-        ['West', '50', '70'],
-      ],
-    },
-    stem: [{ t: 'Which region had the greatest percent increase in sales from Q1 to Q2?' }],
-    choices: ['North', 'South', 'East', 'West', 'North and West are tied'],
-    ans: 3,
-    steps: [
-      'Percent increase = change ÷ Q1 value.',
-      'North 30/120 = 25%, South 12/80 = 15%, East 10/200 = 5%, West 20/50 = 40%.',
-      'West is greatest.',
-    ],
-    fast: 'Compare change to base by eye: West gains 20 on 50, more than a third. Nothing else reaches a quarter.',
-    alt: 'The biggest raw gain (North, +30) is the trap. Percent change cares about the starting size, and West started smallest.',
-  },
-];
 
 export const LESSON_QUESTIONS: LessonQuestion[] = [
   {
@@ -253,18 +121,6 @@ export const TOPICS: Topic[] = (
     ['Verbal', 'Reading Comprehension', 2, 80],
   ] as [Section, string, number, number | null][]
 ).map(([sec, name, level, acc]) => ({ sec, name, level, acc }));
-
-/** Which sample questions a topic drill serves; anything else gets the full set. */
-export const TOPIC_QUESTIONS: Record<string, number[]> = {
-  Percents: [0],
-  'Exponents & roots': [1],
-  'Number properties': [2],
-  'Data sufficiency': [2],
-  Weaken: [3],
-  Tables: [4],
-};
-export const ALL_QUESTIONS = [0, 1, 2, 3, 4];
-export const topicQuestions = (name: string) => TOPIC_QUESTIONS[name] ?? ALL_QUESTIONS;
 
 export const PHASES: Phase[] = [
   {
@@ -336,12 +192,12 @@ export const PERCENT_LESSONS: [mark: string, name: string, current: boolean][] =
 ];
 
 export const INITIAL_MISTAKES: Mistake[] = [
-  { topic: 'Percents', title: 'Successive % change', reason: 'Misread the question', box: 1, due: true, qi: 0 },
-  { topic: 'Number properties', title: 'Is x > 0? · DS with x²', reason: "Didn't know how", box: 0, due: true, qi: 2 },
-  { topic: 'Exponents & roots', title: 'Rewrite on base 2', reason: 'Careless slip', box: 2, due: true, qi: 1 },
-  { topic: 'Weaken', title: 'Alternative cause', reason: 'Rushed or too slow', box: 1, due: false, qi: 3 },
-  { topic: 'Tables', title: 'Percent vs raw change', reason: 'Misread the question', box: 3, due: false, qi: 4 },
-  { topic: 'Percents', title: 'Percent of vs percent more', reason: 'Careless slip', box: 0, due: false, qi: 0 },
+  { topic: 'Percents', title: 'Successive % change', reason: 'Misread the question', box: 1, due: true, qid: 'pct-raise-cut' },
+  { topic: 'Number properties', title: 'Is x > 0? · DS with x²', reason: "Didn't know how", box: 0, due: true, qid: 'ds-sign' },
+  { topic: 'Exponents & roots', title: 'Rewrite on base 2', reason: 'Careless slip', box: 2, due: true, qid: 'exp-same-base' },
+  { topic: 'Weaken', title: 'Alternative cause', reason: 'Rushed or too slow', box: 1, due: false, qid: 'cr-streetlights' },
+  { topic: 'Tables', title: 'Percent vs raw change', reason: 'Misread the question', box: 3, due: false, qid: 'tbl-sales-pct' },
+  { topic: 'Percents', title: 'Percent of vs percent more', reason: 'Careless slip', box: 0, due: false, qid: 'pct-markup-discount' },
 ];
 
 export const INITIAL_SCORES: Score[] = [
@@ -365,21 +221,6 @@ export const TOOLS: [name: string, rule: string, note: string][] = [
   ['Rates & work', 'Work = rate × time', 'Rates add when working together: 1/a + 1/b = 1/t.'],
   ['Divisibility', '3 and 9: digit sum · 4: last two digits', '6 needs 2 and 3. 12 needs 3 and 4.'],
   ['Averages', 'Sum = average × count', 'Most average questions are really sum questions.'],
-];
-
-export const PAST_TESTS = [
-  { date: 'Oct 14', sec: 'Quant', score: '66', right: '13/21' },
-  { date: 'Oct 7', sec: 'Data Insights', score: '71', right: '12/20' },
-  { date: 'Sep 30', sec: 'Quant', score: '63', right: '11/21' },
-];
-
-export const RESULT_ROWS: [name: string, right: number, of: number][] = [
-  ['Number properties', 1, 3],
-  ['Rates & work', 2, 4],
-  ['Exponents & roots', 2, 3],
-  ['Percents', 3, 4],
-  ['Algebra', 3, 4],
-  ['Statistics', 3, 3],
 ];
 
 /** Current estimate per section: [name, estimate, baseline]. */

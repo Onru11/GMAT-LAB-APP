@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { QUEUE, SECTION_ESTIMATES } from '../data';
+import { mixedDrill } from '../content/select';
 import { useApp, visibleMistakes } from '../store';
 import { ArrowRight, BT, CheckIcon, Corners, DoneBadge, FlameIcon, H2, Kicker, heading, rowTop, tabular } from '../components/ui';
 
@@ -138,7 +139,7 @@ export function Today() {
                 ))}
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.45 }}>Tomorrow: lesson “Watch the question word”, 14 cards and 2 mistakes come back.</div>
-              <button className="btn btn-secondary" onClick={() => a.startRun('extra', [1, 2, 4, 0, 3])} style={{ height: 44, fontSize: 15, width: '100%' }}>
+              <button className="btn btn-secondary" onClick={() => a.startRun('extra', mixedDrill(5, Date.now()))} style={{ height: 44, fontSize: 15, width: '100%' }}>
                 Optional: 5-question mixed drill
               </button>
             </section>

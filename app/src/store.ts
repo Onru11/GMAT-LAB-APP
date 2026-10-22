@@ -5,11 +5,12 @@ import {
   INITIAL_MISTAKES,
   INITIAL_SCORES,
   LESSON_QUESTIONS,
-  QUESTIONS,
   SPRINT,
   type Mistake,
   type Score,
 } from './data';
+import { QUESTIONS } from './content/questions';
+import { buildTest, crSet, questionTitle, scoreTest, topicDrill, type AnswerRecord, type TestDef, type TestResult } from './content/select';
 
 export type Route =
   | 'today' | 'learn' | 'lesson' | 'practice' | 'tests' | 'results'
@@ -29,8 +30,11 @@ export const FULLSCREEN: Partial<Record<Route, true>> = { lesson: true, runner: 
 
 export interface Run {
   mode: RunMode;
-  /** Indexes into QUESTIONS. */
-  list: number[];
+  /** Question ids. */
+  list: string[];
+  /** Set when mode is 'test'. */
+  section?: TestDef['section'];
+  answers: AnswerRecord[];
   i: number;
   sel: number | null;
   conf: boolean;
@@ -107,6 +111,8 @@ export interface AppState {
   nothingDue: boolean;
   noScores: boolean;
   scores: Score[];
+  /** Finished adaptive tests, oldest first. */
+  tests: TestResult[];
   form: ScoreForm;
   formErr: string;
   formOk: boolean;
@@ -139,6 +145,7 @@ function freshProgress() {
     boxes: [ALL_CARDS, 0, 0, 0],
     mistakes: [] as Mistake[],
     scores: [] as Score[],
+    tests: [] as TestResult[],
     openPhase: { 0: true, 2: false } as Record<number, boolean>,
     lvl: 0,
     progSec: 0,
@@ -174,7 +181,6 @@ export function initialState(): AppState {
   const progress = rollOver({ ...freshProgress(), ...saved });
   return {
     ...progress,
-    mistakes: progress.mistakes.map(({ fresh: _fresh, ...m }) => m),
     theme: initialTheme(),
     route: 'today',
     tab: 'today',
@@ -209,14 +215,25 @@ function withQueueDone(s: AppState, n: number): Partial<AppState> {
   return finishedNow ? { queue, streak: s.streak + 1, lastFullDay: s.day } : { queue };
 }
 
-function newRun(mode: RunMode, list: number[], over?: Partial<Run>): Run {
-  return { mode, list, i: 0, sel: null, conf: false, sec: 0, reason: null, alt: false, ...over };
+function newRun(mode: RunMode, list: string[], over?: Partial<Run>): Run {
+  return { mode, list, answers: [], i: 0, sel: null, conf: false, sec: 0, reason: null, alt: false, ...over };
+}
+
+/** Numeric seed from the day, so each day's generated sets differ but stay stable within the day. */
+const daySeed = (day: string) => Number(day.replace(/-/g, ''));
+
+/** Record a miss in Mistakes, or send an open one back to the start of its schedule. */
+function withMistake(mistakes: Mistake[], qid: string, reason?: string): Mistake[] {
+  const q = QUESTIONS[qid];
+  const open = mistakes.find(m => m.qid === qid);
+  if (open) return mistakes.map(m => (m === open ? { ...m, box: 0, due: false, reason: reason ?? m.reason } : m));
+  return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, due: false, qid }, ...mistakes];
 }
 
 function createActions(set: Set) {
   const go = (route: Route, extra?: Partial<AppState>) => set(routeTo(route, extra));
   const completeQueueItem = (n: number) => set(s => withQueueDone(s, n));
-  const startRun = (mode: RunMode, list: number[], over?: Partial<Run>) =>
+  const startRun = (mode: RunMode, list: string[], over?: Partial<Run>) =>
     go('runner', { run: newRun(mode, list, over) });
   const openDeck = (deck: number, from: Origin = 'review', over?: Partial<FlashState>) =>
     go('flash', { deck, fl: { ...freshFlash(from), ...over } });
@@ -250,9 +267,12 @@ function createActions(set: Set) {
           const due = visibleMistakes(s).filter(m => m.due);
           // Nothing due: the item is done by definition; show the empty Mistakes screen.
           if (!due.length) return { ...withQueueDone(s, 3), ...routeTo('mistakes') };
-          return routeTo('runner', { run: newRun('mistakes', due.map(m => m.qi)) });
+          return routeTo('runner', { run: newRun('mistakes', due.map(m => m.qid)) });
         });
-      else startRun('cr', [3]);
+      else set(s => routeTo('runner', { run: newRun('cr', crSet(2, daySeed(s.day))) }));
+    },
+    startTest(section: TestDef['section']) {
+      set(s => routeTo('runner', { run: newRun('test', buildTest(section, daySeed(s.day) + s.tests.length), { section }) }));
     },
 
     tick() {
@@ -271,7 +291,7 @@ function createActions(set: Set) {
     lessonNext() {
       set(s => {
         const L = s.les;
-        if (L.step >= 5) return routeTo('runner', { run: newRun('practice', [0, 1]) });
+        if (L.step >= 5) return routeTo('runner', { run: newRun('practice', topicDrill('Percents')) });
         const q = L.step === 3 || L.step === 4 ? LESSON_QUESTIONS[L.step - 3] : null;
         if (q) {
           if (!L.input) return {};
@@ -292,9 +312,17 @@ function createActions(set: Set) {
       set(s => {
         const run = s.run;
         if (!run || run.sel == null || run.conf) return {};
-        if (run.mode === 'test') return advanceRun(s);
-        const ok = run.sel === QUESTIONS[run.list[run.i]].ans;
-        return { run: { ...run, conf: true }, inRow: ok ? s.inRow + 1 : 0 };
+        const qid = run.list[run.i];
+        const ok = run.sel === QUESTIONS[qid].ans;
+        const answered = { ...run, answers: [...run.answers, { qid, sel: run.sel, ok, sec: run.sec }] };
+        // Tests reveal nothing until the end.
+        if (run.mode === 'test') return advanceRun({ ...s, run: answered });
+        const reviewing = run.mode === 'review' || run.mode === 'mistakes';
+        return {
+          run: { ...answered, conf: true },
+          inRow: ok ? s.inRow + 1 : 0,
+          ...(!ok && !reviewing ? { mistakes: withMistake(s.mistakes, qid) } : {}),
+        };
       });
     },
     toggleAlt: () => set(s => (s.run ? { run: { ...s.run, alt: !s.run.alt } } : {})),
@@ -302,13 +330,7 @@ function createActions(set: Set) {
       set(s => {
         const run = s.run;
         if (!run) return {};
-        const qi = run.list[run.i];
-        const q = QUESTIONS[qi];
-        const existing = s.mistakes.some(m => m.qi === qi && m.fresh);
-        const mistakes = existing
-          ? s.mistakes.map(m => (m.qi === qi && m.fresh ? { ...m, reason: label } : m))
-          : [{ topic: q.topic, title: q.kind + ' · just now', reason: label, box: 0, due: false, qi, fresh: true }, ...s.mistakes];
-        return { run: { ...run, reason: label }, mistakes };
+        return { run: { ...run, reason: label }, mistakes: withMistake(s.mistakes, run.list[run.i], label) };
       });
     },
     runNext: () => set(advanceRun),
@@ -404,13 +426,13 @@ function createActions(set: Set) {
         lessonQ: () => openLesson(3),
         lessonWrong: () => go('lesson', { les: { step: 3, input: '50', checked: true, ok: false, score: 0 } }),
         practice: () => go('practice'),
-        runQ: () => startRun('practice', [0, 1, 2, 3, 4], { sec: 38 }),
-        runOk: () => startRun('practice', [0, 1, 2, 3, 4], { sel: 2, conf: true, sec: 72 }),
-        runBad: () => startRun('practice', [2, 0, 1, 3, 4], { sel: 0, conf: true, sec: 154 }),
-        runOver: () => startRun('practice', [3, 4], { sel: 1, sec: 131 }),
-        runTable: () => startRun('practice', [4], { sec: 25 }),
+        runQ: () => startRun('practice', ['pct-raise-cut', 'exp-same-base', 'ds-sign', 'cr-streetlights', 'tbl-sales-pct'], { sec: 38 }),
+        runOk: () => startRun('practice', ['pct-raise-cut', 'exp-same-base', 'ds-sign', 'cr-streetlights', 'tbl-sales-pct'], { sel: 2, conf: true, sec: 72 }),
+        runBad: () => startRun('practice', ['ds-sign', 'pct-raise-cut', 'exp-same-base', 'cr-streetlights', 'tbl-sales-pct'], { sel: 0, conf: true, sec: 154 }),
+        runOver: () => startRun('practice', ['cr-streetlights', 'tbl-sales-pct'], { sel: 1, sec: 131 }),
+        runTable: () => startRun('practice', ['tbl-sales-pct'], { sec: 25 }),
         tests: () => go('tests'),
-        testRun: () => startRun('test', [0, 1, 2, 4], { sec: 47 }),
+        testRun: () => startRun('test', buildTest('Quant', 1), { section: 'Quant', sec: 47 }),
         results: () => go('results'),
         review: () => go('review', { nothingDue: false }),
         reviewEmpty: () => go('review', { nothingDue: true }),
@@ -458,7 +480,12 @@ function advanceRun(s: AppState): Partial<AppState> {
   switch (run.mode) {
     case 'mistakes': return { ...withQueueDone(s, 3), ...routeTo('today') };
     case 'cr': return { ...withQueueDone(s, 4), ...routeTo('today') };
-    case 'test': return routeTo('results');
+    case 'test': {
+      const section = run.section ?? 'Quant';
+      const result = scoreTest(section, run.answers, new Date(), s.day);
+      const missed = run.answers.filter(a => !a.ok).map(a => a.qid);
+      return { ...routeTo('results'), tests: [...s.tests, result], mistakes: missed.reduce((ms, qid) => withMistake(ms, qid), s.mistakes) };
+    }
     case 'review': return routeTo('mistakes');
     case 'extra': return routeTo('today');
     default: return routeTo('practice');

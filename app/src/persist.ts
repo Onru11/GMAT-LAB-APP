@@ -8,7 +8,7 @@ const KEY = 'gmatlab.progress';
 const VERSION = 1;
 
 export const PERSISTED = [
-  'target', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'boxes', 'mistakes', 'scores',
+  'target', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'boxes', 'mistakes', 'scores', 'tests',
   'openPhase', 'lvl', 'progSec',
 ] as const satisfies readonly (keyof AppState)[];
 

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
-import { LETTERS, MISS_REASONS, QUESTIONS } from '../data';
+import { LETTERS, LEVELS, MISS_REASONS } from '../data';
+import { QUESTIONS } from '../content/questions';
 import { fmtTime, useApp, type RunMode } from '../store';
 import { ArrowRight, BT, CheckIcon, CloseButton, Corners, Kicker, PrimaryButton, Svg, heading, tabular } from '../components/ui';
 
@@ -20,7 +21,7 @@ export function Runner() {
   const conf = run.conf;
   const correct = conf && run.sel === q.ans;
   const over = run.sec > TARGET_SECONDS;
-  const total = test ? 21 : run.list.length;
+  const total = run.list.length;
   const last = run.i === run.list.length - 1;
   const timer = fmtTime(run.sec);
   const close = () => a.go(test ? 'tests' : run.mode === 'practice' ? 'practice' : run.mode === 'review' ? 'mistakes' : 'today');
@@ -31,7 +32,7 @@ export function Runner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <CloseButton onClick={close} />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <span style={{ ...heading, fontSize: 17, lineHeight: 1.1 }}>{TITLES[run.mode]}</span>
+            <span style={{ ...heading, fontSize: 17, lineHeight: 1.1 }}>{test ? `${run.section} test · adaptive` : TITLES[run.mode]}</span>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>
               Question {run.i + 1} of {total}
             </span>
@@ -51,7 +52,7 @@ export function Runner() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <span className="tag tag-accent">{q.kind}</span>
             <span className="tag tag-neutral" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>{q.topic}</span>
-            <span className="tag tag-neutral" style={{ background: 'var(--color-surface)', color: 'var(--muted)' }}>{q.diff}</span>
+            <span className="tag tag-neutral" style={{ background: 'var(--color-surface)', color: 'var(--muted)' }}>{LEVELS[q.level]}</span>
           </div>
 
           {q.passage && (

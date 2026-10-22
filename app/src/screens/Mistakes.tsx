@@ -63,7 +63,7 @@ export function Mistakes() {
               </div>
             ))}
           </div>
-          <PrimaryButton onClick={() => a.startRun('review', due.map(m => m.qi))} style={{ height: 48, fontSize: 16 }}>
+          <PrimaryButton onClick={() => a.startRun('review', due.map(m => m.qid))} style={{ height: 48, fontSize: 16 }}>
             Review {due.length} due · about {Math.max(2, due.length * 2)} min
           </PrimaryButton>
         </section>

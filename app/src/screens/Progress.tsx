@@ -1,5 +1,6 @@
 import { Fragment, type CSSProperties } from 'react';
-import { TOPICS, levelName, topicQuestions, type Section } from '../data';
+import { TOPICS, levelName, type Section } from '../data';
+import { topicDrill } from '../content/select';
 import { useApp, type ScoreForm } from '../store';
 import { BT, Corners, H2, LevelSegments, MiniSegment, PageHeader, PrimaryButton, heading, rowTop } from '../components/ui';
 
@@ -101,7 +102,7 @@ export function Progress() {
         <H2>Weakest topics</H2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {weakest.map(t => (
-            <button key={t.name} className="hover-edge" onClick={() => a.startRun('practice', topicQuestions(t.name))} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer' }}>
+            <button key={t.name} className="hover-edge" onClick={() => a.startRun('practice', topicDrill(t.name, t.sec))} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: BT, background: 'var(--color-bg)', color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer' }}>
               <span style={{ ...heading, fontSize: 22, color: 'var(--bad)', width: 46, fontVariantNumeric: 'tabular-nums' }}>{t.acc}%</span>
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontWeight: 500 }}>{t.name}</span>
