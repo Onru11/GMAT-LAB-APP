@@ -3,6 +3,7 @@ import { AppContext, FULLSCREEN, useAppStore, visibleMistakes, type Route, type 
 import { BT, FlameIcon } from './components/ui';
 import { daysBetween } from './progress';
 import { DevPanel } from './components/DevPanel';
+import { SyncContext, useSync } from './sync/useSync';
 import { Today } from './screens/Today';
 import { Welcome } from './screens/Welcome';
 import { Learn } from './screens/Learn';
@@ -58,6 +59,7 @@ function TabIcon({ tab, size }: { tab: Tab; size: number }) {
 export function App() {
   const { s, a } = useAppStore();
   const desk = useIsDesktop();
+  const sync = useSync(s, a);
   const scrollRef = useRef<HTMLDivElement>(null);
   const full = !!FULLSCREEN[s.route];
   const dueCount = visibleMistakes(s).filter(m => m.due).length;
@@ -73,6 +75,7 @@ export function App() {
 
   return (
     <AppContext.Provider value={{ s, a, desk }}>
+      <SyncContext.Provider value={sync}>
       <div className="app">
         {desk && s.route !== 'welcome' && (
           <nav aria-label="Main" style={{ flex: 'none', width: 232, borderRight: BT, background: 'var(--color-bg)', display: 'flex', flexDirection: 'column', padding: '22px 14px', gap: 4 }}>
@@ -127,6 +130,7 @@ export function App() {
         </div>
       </div>
       {showDevPanel && <DevPanel />}
+      </SyncContext.Provider>
     </AppContext.Provider>
   );
 }

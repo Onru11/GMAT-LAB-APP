@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { PERSISTED, clearProgress, dayKey, loadProgress, parseProgress, rollOver, saveProgress } from './persist';
+import type { Cleared } from './sync/merge';
 import { DECKS, INITIAL_MISTAKES, INITIAL_SCORES, SPRINT, TOPICS, type Deck, type Score } from './data';
 import { CURRICULUM, LESSON_BY_ID, nextLesson } from './content/lessons/curriculum';
 import { QUESTIONS, QUESTION_LIST } from './content/bank';
@@ -147,8 +148,10 @@ export interface AppState {
   ladders: Record<string, Ladder>;
   /** Flashcard schedule, keyed by cardKey(). */
   cards: Record<string, CardState>;
-  /** Day each mistake was cleared. */
-  cleared: string[];
+  /** Every mistake cleared, and when. */
+  cleared: Cleared[];
+  /** Last change to target / exam date / daily time (ms), for sync. */
+  settingsAt: number;
   /** Fastest sprint, in seconds; and the most recent one. */
   sprintBest: number | null;
   sprintLast: number | null;
@@ -198,7 +201,8 @@ function freshProgress() {
     history: [] as Answer[],
     ladders: {} as Record<string, Ladder>,
     cards: {} as Record<string, CardState>,
-    cleared: [] as string[],
+    cleared: [] as Cleared[],
+    settingsAt: 0,
     sprintBest: null as number | null,
     sprintLast: null as number | null,
     sprintFacts: [] as [string, string][],
@@ -221,7 +225,7 @@ function sampleProgress() {
     inRow: 2,
     mistakes: INITIAL_MISTAKES.map(({ due, ...m }) => ({ ...m, next: due ? today : addDays(today, INTERVALS[m.box]) })),
     scores: INITIAL_SCORES,
-    cleared: Array.from({ length: 14 }, () => addDays(today, -7)),
+    cleared: Array.from({ length: 14 }, (_, i) => ({ qid: `sample-${i}`, day: addDays(today, -7), at: 0 })),
     sprintBest: 161,
     sprintLast: 178,
     ...sampleHistory(addDays(today, -1)),
@@ -303,8 +307,9 @@ function withMistake(mistakes: Mistake[], qid: string, today: string, reason?: s
   const q = QUESTIONS[qid];
   const next = addDays(today, INTERVALS[0]);
   const open = mistakes.find(m => m.qid === qid);
-  if (open) return mistakes.map(m => (m === open ? { ...m, box: 0, next, reason: reason ?? m.reason } : m));
-  return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, next, qid }, ...mistakes];
+  const at = Date.now();
+  if (open) return mistakes.map(m => (m === open ? { ...m, box: 0, next, reason: reason ?? m.reason, at } : m));
+  return [{ topic: q.topic, title: questionTitle(q), reason: reason ?? 'Not tagged', box: 0, next, qid, at }, ...mistakes];
 }
 
 /** Five questions per section at a medium level, each from a different topic where possible. */
@@ -380,7 +385,7 @@ export function todaySummary(s: AppState) {
   return {
     accuracy: answers.length ? Math.round((100 * answers.filter(a => a.ok).length) / answers.length) : null,
     cards: Object.values(s.cards).filter(c => c.last === s.day).length,
-    cleared: s.cleared.filter(d => d === s.day).length,
+    cleared: s.cleared.filter(c => c.day === s.day).length,
     mistakesTomorrow: s.mistakes.filter(m => m.next === tomorrow).length,
     cardsTomorrow: Object.values(s.cards).filter(c => c.next === tomorrow).length,
   };
@@ -407,8 +412,10 @@ function createActions(set: Set) {
     openLesson,
 
     setTheme: (theme: Theme) => set({ theme }),
-    setTarget: (target: number) => set({ target }),
-    setPlan: (plan: Partial<Pick<AppState, 'target' | 'examDate' | 'dailyMin'>>) => set(plan),
+    setTarget: (target: number) => set({ target, settingsAt: Date.now() }),
+    setPlan: (plan: Partial<Pick<AppState, 'target' | 'examDate' | 'dailyMin'>>) => set({ ...plan, settingsAt: Date.now() }),
+    /** Take in progress merged with another device's. */
+    applySynced: (data: Partial<AppState>) => set(s => rollOver({ ...s, ...data }, dayKey())),
     /** Finish setup; optionally go straight into the diagnostic. */
     finishSetup(diagnostic: boolean) {
       set(s => (diagnostic ? { onboarded: true, ...routeTo('runner', { run: newRun('diagnostic', diagnosticSet(daySeed(s.day))) }) } : { onboarded: true, ...routeTo('today') }));
@@ -523,14 +530,15 @@ function createActions(set: Set) {
         const q = QUESTIONS[qid];
         const ok = run.sel === q.ans;
         const answered = { ...run, answers: [...run.answers, { qid, sel: run.sel, ok, sec: run.sec }] };
+        const now = Date.now();
         const learned = {
-          history: pushHistory(s.history, { qid, ok, sec: run.sec, day: s.day }),
-          ladders: { ...s.ladders, [q.topic]: climb(s.ladders[q.topic], ok) },
+          history: pushHistory(s.history, { qid, ok, sec: run.sec, day: s.day, t: now }),
+          ladders: { ...s.ladders, [q.topic]: { ...climb(s.ladders[q.topic], ok), at: now } },
         };
         // Diagnostic: no solutions, and each answer places the topic's level directly.
         if (run.mode === 'diagnostic') {
           const level = ok ? Math.min(4, q.level + 1) : Math.max(0, q.level - 1);
-          const seeded = { ...learned, ladders: { ...s.ladders, [q.topic]: { level, right: 0, wrong: 0 } } };
+          const seeded = { ...learned, ladders: { ...s.ladders, [q.topic]: { level, right: 0, wrong: 0, at: now } } };
           const missed = ok ? {} : { mistakes: withMistake(s.mistakes, qid, s.day) };
           if (run.i < run.list.length - 1) return { ...seeded, ...missed, run: { ...answered, i: run.i + 1, sel: null, sec: 0 } };
           return { ...seeded, ...missed, run: null, ...routeTo('today') };
@@ -556,8 +564,8 @@ function createActions(set: Set) {
           const after = open && reviewMistake(open, ok, s.day);
           if (open)
             review = after
-              ? { mistakes: s.mistakes.map(m => (m === open ? after : m)) }
-              : { mistakes: s.mistakes.filter(m => m !== open), cleared: [...s.cleared, s.day] };
+              ? { mistakes: s.mistakes.map(m => (m === open ? { ...after, at: now } : m)) }
+              : { mistakes: s.mistakes.filter(m => m !== open), cleared: [...s.cleared, { qid, day: s.day, at: Date.now() }] };
         } else if (!ok) review = { mistakes: withMistake(s.mistakes, qid, s.day) };
         return { ...learned, ...review, run: { ...answered, conf: true }, inRow: ok ? s.inRow + 1 : 0 };
       });
@@ -570,7 +578,7 @@ function createActions(set: Set) {
         const qid = run.list[run.i];
         const open = s.mistakes.find(m => m.qid === qid);
         // Reviewing an existing miss only retags it; a fresh miss is (re)scheduled.
-        const mistakes = open ? s.mistakes.map(m => (m === open ? { ...m, reason: label } : m)) : withMistake(s.mistakes, qid, s.day, label);
+        const mistakes = open ? s.mistakes.map(m => (m === open ? { ...m, reason: label, at: Date.now() } : m)) : withMistake(s.mistakes, qid, s.day, label);
         return { run: { ...run, reason: label }, mistakes };
       });
     },
@@ -794,7 +802,7 @@ function advanceFlash(s: AppState, known: boolean): Partial<AppState> {
   const k = cardKey(deck.name, currentCard(s)[0]);
   const last = f.i >= f.cards.length - 1;
   return {
-    cards: { ...s.cards, [k]: gradeCard(s.cards[k], known, s.day) },
+    cards: { ...s.cards, [k]: { ...gradeCard(s.cards[k], known, s.day), at: Date.now() } },
     fl: { ...f, i: last ? f.i : f.i + 1, flipped: false, input: '', checked: false, ok: false, done: last, known: f.known + (known ? 1 : 0) },
   };
 }

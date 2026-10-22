@@ -30,6 +30,8 @@ export interface Answer {
   ok: boolean;
   sec: number;
   day: string;
+  /** When it was answered (ms); identifies the answer when devices sync. */
+  t?: number;
 }
 export const HISTORY_CAP = 3000;
 export const pushHistory = (history: Answer[], a: Answer) => [...history, a].slice(-HISTORY_CAP);
@@ -44,6 +46,8 @@ export interface Ladder {
   level: number;
   right: number;
   wrong: number;
+  /** Last change (ms), for sync. */
+  at?: number;
 }
 export const UP_AFTER = 3;
 export const DOWN_AFTER = 2;
@@ -120,6 +124,8 @@ export interface Mistake {
   /** Day it is next due. */
   next: string;
   qid: string;
+  /** Last change (ms), for sync. */
+  at?: number;
 }
 
 /** Result of reviewing a due mistake: rescheduled, or null when cleared. */
@@ -138,6 +144,8 @@ export interface CardState {
   next: string;
   /** Last day it was graded. */
   last: string;
+  /** Last change (ms), for sync. */
+  at?: number;
 }
 export const cardKey = (deck: string, front: string) => `${deck}|${front}`;
 

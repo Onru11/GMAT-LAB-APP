@@ -5,11 +5,11 @@
 import type { AppState } from './store';
 
 const KEY = 'gmatlab.progress';
-const VERSION = 2;
+const VERSION = 3;
 
 export const PERSISTED = [
   'target', 'examDate', 'dailyMin', 'onboarded', 'lessonsDone', 'day', 'lastFullDay', 'queue', 'streak', 'inRow', 'mistakes', 'scores', 'tests',
-  'history', 'ladders', 'cards', 'cleared', 'sprintBest', 'sprintLast', 'sprintFacts',
+  'history', 'ladders', 'cards', 'cleared', 'settingsAt', 'sprintBest', 'sprintLast', 'sprintFacts',
   'openPhase', 'lvl', 'progSec',
 ] as const satisfies readonly (keyof AppState)[];
 
@@ -42,7 +42,8 @@ export function parseProgress(raw: string): Partial<Persisted> | null {
     const parsed = JSON.parse(raw) as { v?: number; data?: Record<string, unknown> };
     if (!parsed.data) return null;
     if (parsed.v === VERSION) return parsed.data as Partial<Persisted>;
-    if (parsed.v === 1) return migrateV1(parsed.data);
+    if (parsed.v === 2) return migrateV2(parsed.data);
+    if (parsed.v === 1) return migrateV2(migrateV1(parsed.data) as Record<string, unknown>);
     return null;
   } catch {
     return null;
@@ -58,6 +59,12 @@ function migrateV1(data: Record<string, unknown>): Partial<Persisted> {
 /** The saved form of the learner's progress, also used for backup files. */
 export function serializeProgress(s: AppState): string {
   return JSON.stringify({ v: VERSION, app: 'gmat-lab', data: Object.fromEntries(PERSISTED.map(k => [k, s[k]])) });
+}
+
+/** v2 kept cleared mistakes as bare days. */
+function migrateV2(data: Record<string, unknown>): Partial<Persisted> {
+  const cleared = Array.isArray(data.cleared) ? data.cleared.map((day, i) => (typeof day === 'string' ? { qid: `legacy-${i}`, day, at: 0 } : day)) : [];
+  return { ...(data as Partial<Persisted>), cleared };
 }
 
 export function saveProgress(s: AppState) {

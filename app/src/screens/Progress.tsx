@@ -2,6 +2,7 @@ import { Fragment, type CSSProperties } from 'react';
 import { levelName, type Section } from '../data';
 import { topicStats, weakestTopics } from '../stats';
 import { Backup, Insights } from './Insights';
+import { SyncCard } from './SyncCard';
 import { PHASE_COPY, daysToExam, phaseFor } from '../plan';
 import { addDays } from '../progress';
 import { useApp, type ScoreForm } from '../store';
@@ -183,6 +184,7 @@ export function Progress() {
         </PrimaryButton>
       </section>
 
+      <SyncCard />
       <Backup />
     </div>
   );
