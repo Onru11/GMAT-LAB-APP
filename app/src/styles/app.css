@@ -1,0 +1,124 @@
+/* App layer on top of the Industry design system: semantic colours for
+   right / wrong / traps, the highlighter, the grid-paper ground and dark mode. */
+:root {
+  --ok: #2e7d55;
+  --ok-bg: #e2f1e7;
+  --bad: #b9423a;
+  --bad-bg: #f8e3e1;
+  --warn: #8f5d10;
+  --warn-bg: #fbefd6;
+  --hl: #ffe9a3;
+  --hl-ink: #1d1f20;
+  --grid: color-mix(in srgb, #5980a6 10%, transparent);
+  --muted: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #15181b;
+  --color-surface: #1d2125;
+  --color-text: #e4e6e8;
+  --color-accent: #86a9cc;
+  --color-divider: color-mix(in srgb, #e4e6e8 17%, transparent);
+  --color-accent-100: #1e2a36;
+  --color-accent-200: #253747;
+  --color-accent-600: #9dbcdb;
+  --color-accent-700: #b5d0ea;
+  --color-accent-800: #cfe2f5;
+  --ok: #62c28e;
+  --ok-bg: #15301f;
+  --bad: #ef8178;
+  --bad-bg: #3b1c1a;
+  --warn: #e8b25a;
+  --warn-bg: #35290f;
+  --hl: #ecd78f;
+  --grid: color-mix(in srgb, #86a9cc 7%, transparent);
+  --muted: color-mix(in srgb, #e4e6e8 64%, transparent);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-bg);
+}
+a {
+  color: var(--color-accent-700);
+}
+a:hover {
+  color: var(--color-accent-800);
+}
+button {
+  font: inherit;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.app {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  background-color: var(--color-bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.97); opacity: 0; }
+  60% { transform: scale(1.015); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 30; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@keyframes rise {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Hover / press states. Elements carry their resting colours inline, so
+   these need !important to win over them. */
+.hover-tint:hover { background: var(--color-accent-100) !important; }
+.hover-edge:hover { border-color: var(--color-accent) !important; }
+.hover-tile:hover {
+  border-color: var(--color-accent) !important;
+  background: var(--color-accent-100) !important;
+}
+.press-tile:active { transform: scale(0.98); }
+.press-choice:active { transform: scale(0.99); }
+.press-key:active {
+  transform: scale(0.96);
+  background: var(--color-accent-200) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
