@@ -34,12 +34,17 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
       - name: Publish to gh-pages
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
         run: |
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
+          echo "Base path: $BASE_PATH"; grep -o 'src="[^"]*"' dist/index.html
           git fetch --depth=1 origin gh-pages
           git worktree add /tmp/site FETCH_HEAD
-          rsync -a --delete --exclude .git dist/ /tmp/site/
+          # Replace the whole site so no stale file survives.
+          find /tmp/site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -r dist/. /tmp/site/
           cd /tmp/site
           git add -A
           if git diff --cached --quiet; then echo "Site unchanged"; exit 0; fi
