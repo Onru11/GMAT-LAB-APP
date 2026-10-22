@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSyncApi, type SyncStatus } from '../sync/useSync';
-import { Corners, heading } from '../components/ui';
+import { Corners, MiniSegment, heading } from '../components/ui';
 
 const STATUS: Record<SyncStatus, [label: string, color: string]> = {
   off: ['Off', 'var(--muted)'],
@@ -22,6 +22,8 @@ export function SyncCard() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState('');
+  const [method, setMethod] = useState<'password' | 'code'>('password');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   if (!sync.configured) return null;
@@ -33,12 +35,14 @@ export function SyncCard() {
       await f();
       if (ok) setMsg({ ok: true, text: ok });
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
+      // An error carrying ok: true is an informational stop, e.g. "confirm your email".
+      setMsg({ ok: !!(e as { ok?: boolean })?.ok, text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
     } finally {
       setBusy(false);
     }
   };
   const [label, color] = STATUS[sync.status];
+  const validEmail = /\S+@\S+\.\S+/.test(email);
 
   return (
     <section className="blueprint" style={{ background: 'var(--color-bg)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -67,13 +71,35 @@ export function SyncCard() {
         </>
       ) : (
         <>
-          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Sign in with your email on each device. Progress from all of them is combined; nothing is overwritten.</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Sign in on each device with the same account. Progress from all of them is combined; nothing is overwritten.</div>
+          <MiniSegment<'password' | 'code'> options={[['Password', 'password'], ['Email code', 'code']]} value={method} onChange={m => { setMethod(m); setMsg(null); }} />
           <div className="field">
             <label htmlFor="sync-email">Email</label>
             <input id="sync-email" className="input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ height: 44 }} />
           </div>
-          {!sent ? (
-            <button className="btn btn-primary" style={{ height: 44 }} disabled={busy || !/\S+@\S+\.\S+/.test(email)} onClick={() => run(async () => { await sync.sendSignIn(email.trim()); setSent(true); }, 'Check your email for a sign-in link or a 6-digit code.')}>
+          {method === 'password' ? (
+            <>
+              <div className="field">
+                <label htmlFor="sync-password">Password</label>
+                <input id="sync-password" className="input" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} style={{ height: 44 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary" style={{ flex: 1, height: 44 }} disabled={busy || !validEmail || password.length < 8} onClick={() => run(async () => {
+                  const confirmFirst = await sync.signUpWithPassword(email.trim(), password);
+                  if (confirmFirst) throw Object.assign(new Error('Account created. Open the confirmation email once, then sign in here. (If the link opens a page that doesn’t load, that’s fine: the account is still confirmed.)'), { ok: true });
+                })}>
+                  Create account
+                </button>
+                <button className="btn btn-primary" style={{ flex: 1, height: 44 }} disabled={busy || !validEmail || !password} onClick={() => run(() => sync.signInWithPassword(email.trim(), password).catch(e => {
+                  throw new Error(/confirm/i.test(String(e?.message)) ? 'Confirm your email first (check your inbox), then sign in.' : 'Wrong email or password.');
+                }))}>
+                  Sign in
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>New here? Pick a password of at least 8 characters and tap Create account.</div>
+            </>
+          ) : !sent ? (
+            <button className="btn btn-primary" style={{ height: 44 }} disabled={busy || !validEmail} onClick={() => run(async () => { await sync.sendSignIn(email.trim()); setSent(true); }, 'Check your email for a sign-in link or a 6-digit code.')}>
               Email me a sign-in code
             </button>
           ) : (

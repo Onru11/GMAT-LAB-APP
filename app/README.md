@@ -11,14 +11,15 @@ npm test           # answer keys, progress rules, plan, scoring
 npm run build      # typecheck + production build into dist/
 ```
 
-Pushing to `main` runs the tests and deploys to GitHub Pages (enable Pages with source
-"GitHub Actions" in the repository settings). Add `?dev` to the URL for the review panel:
+Pushing to `main` runs the tests, builds, and publishes to the `gh-pages` branch, which GitHub Pages
+serves at https://onru11.github.io/gmat-lab-app/. Add `?dev` to the URL for the review panel:
 jump to named states, load sample data, reset progress, switch theme.
 
 ## Sync across devices (optional)
 
 Sync uses [Supabase](https://supabase.com) (free tier is enough). Without it the app works fully
-offline on one device; the Sync card only appears once a project is configured.
+offline on one device; the Sync card only appears once a project is configured. Learners sign in with
+email + password (one confirmation email per account) or with an emailed 6-digit code.
 
 1. Create a project at supabase.com.
 2. **SQL Editor → New query**: paste `../supabase/schema.sql` and run it. It creates the

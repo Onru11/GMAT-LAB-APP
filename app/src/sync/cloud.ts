@@ -40,6 +40,18 @@ export async function verifyCode(email: string, token: string) {
   if (error) throw error;
 }
 
+/** Create an account with a password. Returns true if the project wants the email confirmed first. */
+export async function signUpWithPassword(email: string, password: string): Promise<boolean> {
+  const { data, error } = await cloud().auth.signUp({ email, password, options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL } });
+  if (error) throw error;
+  return !data.session;
+}
+
+export async function signInWithPassword(email: string, password: string) {
+  const { error } = await cloud().auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
 export async function signOut() {
   await cloud().auth.signOut();
 }

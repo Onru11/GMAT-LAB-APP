@@ -1,21 +1,22 @@
 name: Deploy to GitHub Pages
 
+# Tests and builds the app, then publishes it to the gh-pages branch, which
+# GitHub Pages serves at https://<owner>.github.io/<repo>/.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,16 +33,15 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: app/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages
+        run: |
+          touch dist/.nojekyll
+          cp dist/index.html dist/404.html
+          git fetch --depth=1 origin gh-pages
+          git worktree add /tmp/site FETCH_HEAD
+          rsync -a --delete --exclude .git dist/ /tmp/site/
+          cd /tmp/site
+          git add -A
+          if git diff --cached --quiet; then echo "Site unchanged"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Publish ${GITHUB_SHA::7}"
+          git push origin HEAD:gh-pages

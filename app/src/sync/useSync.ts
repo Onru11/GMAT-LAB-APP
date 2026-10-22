@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { PERSISTED, parseProgress, serializeProgress } from '../persist';
 import type { Actions, AppState } from '../store';
 import { mergeProgress } from './merge';
-import { currentSession, onSessionChange, pullProgress, pushProgress, sendSignIn, signOut, syncConfigured, verifyCode } from './cloud';
+import { currentSession, onSessionChange, pullProgress, pushProgress, sendSignIn, signInWithPassword, signOut, signUpWithPassword, syncConfigured, verifyCode } from './cloud';
 
 export type SyncStatus = 'off' | 'signed-out' | 'syncing' | 'synced' | 'offline' | 'error';
 
@@ -15,6 +15,9 @@ export interface SyncApi {
   error: string | null;
   sendSignIn: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  /** Resolves true when the account must be confirmed by email before signing in. */
+  signUpWithPassword: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   syncNow: () => void;
 }
@@ -111,6 +114,8 @@ export function useSync(s: AppState, a: Actions): SyncApi {
     error,
     sendSignIn,
     verifyCode,
+    signInWithPassword,
+    signUpWithPassword,
     signOut: async () => {
       await signOut();
       setSession(null);
